@@ -1,0 +1,98 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+	/* Begin PBXBuildFile section */
+		AppEntryAppSwift = {isa = PBXBuildFile; fileRef = AppEntrySwift; };
+		ModuleModels = {isa = PBXBuildFile; fileRef = ModuleModels; };
+		APIService = {isa = PBXBuildFile; fileRef = APIService; };
+		ModuleViewModel = {isa = PBXBuildFile; fileRef = ModuleViewModel; };
+		HomeView = {isa = PBXBuildFile; fileRef = HomeView; };
+		LibraryView = {isa = PBXBuildFile; fileRef = LibraryView; };
+		ModuleDetailView = {isa = PBXBuildFile; fileRef = ModuleDetailView; };
+		SettingsView = {isa = PBXBuildFile; fileRef = SettingsView; };
+		ModuleCard = {isa = PBXBuildFile; fileRef = ModuleCard; };
+		TagView = {isa = PBXBuildFile; fileRef = TagView; };
+		ContentBlockView = {isa = PBXBuildFile; fileRef = ContentBlockView; };
+	/* End PBXBuildFile section */
+
+	/* Begin PBXFileReference section */
+		AppEntrySwift = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEntry.swift; sourceTree = "<group>"; };
+		ModuleModels = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Module.swift; sourceTree = "<group>"; };
+		APIService = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIService.swift; sourceTree = "<group>"; };
+		ModuleViewModel = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModuleViewModel.swift; sourceTree = "<group>"; };
+		HomeView = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		LibraryView = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		ModuleDetailView = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModuleDetailView.swift; sourceTree = "<group>"; };
+		SettingsView = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		ModuleCard = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModuleCard.swift; sourceTree = "<group>"; };
+		TagView = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagView.swift; sourceTree = "<group>"; };
+		ContentBlockView = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentBlockView.swift; sourceTree = "<group>"; };
+	/* End PBXFileReference section */
+
+	/* Begin PBXGroup section */
+		Models = {
+			isa = PBXGroup;
+			children = (
+				ModuleModels,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		Services = {
+			isa = PBXGroup;
+			children = (
+				APIService,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		ViewModels = {
+			isa = PBXGroup;
+			children = (
+				ModuleViewModel,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		Views = {
+			isa = PBXGroup;
+			children = (
+				HomeView,
+				LibraryView,
+				ModuleDetailView,
+				SettingsView,
+				Components,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		Components = {
+			isa = PBXGroup;
+			children = (
+				ModuleCard,
+				TagView,
+				ContentBlockView,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+	/* End PBXGroup section */
+
+	/* Begin PBXProject section */
+		Project = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+			};
+		};
+	/* End PBXProject section */
+
+	};
+	rootObject = Project;
+}
