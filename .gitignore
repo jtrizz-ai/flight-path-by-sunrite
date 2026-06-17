@@ -1,32 +1,39 @@
-# Node.js
+# Node.js (monorepo)
 node_modules/
+web/node_modules/
+node-worker/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 dist/
+web/dist/
+node-worker/dist/
+web/.next/
 .env
 .env.local
 .env.*.local
+web/.env.local
+node-worker/.env.local
 
 # iOS/Xcode
-FlightPathApp.xcodeproj/xcuserdata/
-FlightPathApp.xcodeproj/project.xcworkspace/xcuserdata/
-DerivedData/
-*.moved-aside
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-build/
-Build/
-*.hmap
-*.ipa
-*.dSYM.zip
-*.dSYM
+ios/FlightPathApp.xcodeproj/xcuserdata/
+ios/FlightPathApp.xcodeproj/project.xcworkspace/xcuserdata/
+ios/DerivedData/
+ios/*.moved-aside
+ios/*.pbxuser
+!ios/default.pbxuser
+ios/*.mode1v3
+!ios/default.mode1v3
+ios/*.mode2v3
+!ios/default.mode2v3
+ios/*.perspectivev3
+!ios/default.perspectivev3
+ios/build/
+ios/Build/
+ios/*.hmap
+ios/*.ipa
+ios/*.dSYM.zip
+ios/*.dSYM
 
 # macOS
 .DS_Store

@@ -1,13 +1,14 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-import modulesRoutes from './routes/modules.routes';
-
-// Load environment variables
-dotenv.config();
+import publicRoutes from './routes/public.routes';
+import chatRoutes from './routes/chat.routes';
+import { config } from './config';
+import { cacheService } from './services/cache.service';
+import { chunkService } from './services/chunk.service';
+import { NotionService } from './services/notion.service';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = config.server.port;
 
 // Middleware
 app.use(cors({
@@ -26,7 +27,8 @@ app.use((req, res, next) => {
 });
 
 // API Routes
-app.use('/api', modulesRoutes);
+app.use('/api', publicRoutes);
+app.use('/api', chatRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -58,13 +60,15 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-// Start server
+// Start server (simplified - no cache loading for public API)
 app.listen(PORT, () => {
   console.log(`
-  🚀 Flight Path API Server
+  🚀 Flight Path Public API Server
   📡 Running on: http://localhost:${PORT}
   📝 Environment: ${process.env.NODE_ENV || 'development'}
-  `);
+  🌐 Public Notion Page Viewer (No authentication)
+  🔗 Ready to fetch published Notion pages
+      `);
 });
 
 export default app;

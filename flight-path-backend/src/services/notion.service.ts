@@ -1,20 +1,14 @@
 import { Client } from '@notionhq/client';
 import { Module, ContentBlock, Tag, NotionPage, NotionBlock, NotionDatabaseResponse, NotionBlocksResponse } from '../types/module.types';
+import { config } from '../config';
 
 export class NotionService {
   private client: Client;
   private databaseId: string;
 
   constructor() {
-    const apiKey = process.env.NOTION_API_KEY;
-    const databaseId = process.env.NOTION_DATABASE_ID;
-
-    if (!apiKey || !databaseId) {
-      throw new Error('NOTION_API_KEY and NOTION_DATABASE_ID must be set in environment variables');
-    }
-
-    this.client = new Client({ auth: apiKey });
-    this.databaseId = databaseId;
+    this.client = new Client({ auth: config.notion.apiKey });
+    this.databaseId = config.notion.databaseId;
   }
 
   /**
@@ -196,6 +190,32 @@ export class NotionService {
           type: 'todo',
           text: extractText(block.to_do?.rich_text || []),
           checked: block.to_do?.checked || false,
+        };
+
+      case 'callout':
+        return {
+          type: 'callout',
+          text: extractText(block.callout?.rich_text || []),
+          emoji: block.callout?.icon?.emoji,
+        };
+
+      case 'quote':
+        return {
+          type: 'quote',
+          text: extractText(block.quote?.rich_text || []),
+        };
+
+      case 'divider':
+        return {
+          type: 'divider',
+          text: '',
+        };
+
+      case 'code':
+        return {
+          type: 'code',
+          text: extractText(block.code?.rich_text || []),
+          language: block.code?.language,
         };
 
       default:

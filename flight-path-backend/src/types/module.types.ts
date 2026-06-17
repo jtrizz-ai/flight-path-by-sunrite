@@ -7,10 +7,12 @@ export interface Tag {
 }
 
 export interface ContentBlock {
-  type: 'paragraph' | 'heading_1' | 'heading_2' | 'heading_3' | 'bullet_list' | 'numbered_list' | 'todo';
+  type: 'paragraph' | 'heading_1' | 'heading_2' | 'heading_3' | 'bullet_list' | 'numbered_list' | 'todo' | 'callout' | 'quote' | 'divider' | 'code';
   text: string;
   checked?: boolean; // For todo items
   level?: number; // For headings (1, 2, or 3)
+  emoji?: string; // For callout blocks
+  language?: string; // For code blocks
 }
 
 export interface Module {
@@ -57,6 +59,20 @@ export interface NotionBlock {
   to_do?: {
     rich_text: Array<{ type: string; text: { content: string } }>;
     checked: boolean;
+  };
+  callout?: {
+    rich_text: Array<{ type: string; text: { content: string } }>;
+    icon?: {
+      emoji: string;
+    };
+  };
+  quote?: {
+    rich_text: Array<{ type: string; text: { content: string } }>;
+  };
+  divider?: Record<string, unknown>;
+  code?: {
+    rich_text: Array<{ type: string; text: { content: string } }>;
+    language?: string;
   };
   has_children: boolean;
 }

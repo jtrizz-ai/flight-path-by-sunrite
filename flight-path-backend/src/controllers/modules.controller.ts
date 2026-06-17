@@ -1,33 +1,27 @@
 import { Request, Response } from 'express';
-import { NotionService } from '../services/notion.service';
+import { cacheService } from '../services/cache.service';
 
 export class ModuleController {
-  private notionService: NotionService;
-
-  constructor() {
-    try {
-      this.notionService = new NotionService();
-    } catch (error) {
-      console.error('Failed to initialize NotionService:', error);
-      // Will throw error when first request is made
-    }
-  }
-
   /**
    * Health check endpoint
    * GET /api/health
    */
   async health(req: Request, res: Response): Promise<void> {
     try {
+      const lastSync = cacheService.getLastSyncTimestamp();
+      const hasCache = cacheService.hasValidCache();
+
       res.json({
-        status: 'ok',
-        timestamp: new Date().toISOString(),
+        ok: true,
+        lastSync,
+        hasCache,
+        moduleCount: cacheService.getModulesFromMemory().length,
       });
     } catch (error) {
       console.error('Health check error:', error);
       res.status(500).json({
-        status: 'error',
-        message: 'Internal server error',
+        ok: false,
+        error: 'Internal server error',
       });
     }
   }
@@ -38,12 +32,20 @@ export class ModuleController {
    */
   async getAllModules(req: Request, res: Response): Promise<void> {
     try {
-      if (!this.notionService) {
-        throw new Error('Notion service not initialized');
+      const modules = cacheService.getModulesFromMemory();
+
+      if (!modules || modules.length === 0) {
+        res.status(503).json({
+          error: 'No cached data available',
+          message: 'Please sync with Notion first using POST /api/sync',
+        });
+        return;
       }
 
-      const modules = await this.notionService.getAllModules();
-      res.json(modules);
+      // Return modules without content blocks (lighter response)
+      const modulesWithoutContent = modules.map(({ contentBlocks, ...rest }) => rest);
+
+      res.json(modulesWithoutContent);
     } catch (error) {
       console.error('Error getting all modules:', error);
       res.status(500).json({
@@ -59,10 +61,6 @@ export class ModuleController {
    */
   async getModuleById(req: Request, res: Response): Promise<void> {
     try {
-      if (!this.notionService) {
-        throw new Error('Notion service not initialized');
-      }
-
       const { id } = req.params;
 
       if (!id) {
@@ -72,7 +70,16 @@ export class ModuleController {
         return;
       }
 
-      const module = await this.notionService.getModuleById(id);
+      const module = cacheService.getModuleByIdFromMemory(id);
+
+      if (!module) {
+        res.status(404).json({
+          error: 'Module not found',
+          message: `Module with ID ${id} not found in cache`,
+        });
+        return;
+      }
+
       res.json(module);
     } catch (error) {
       console.error(`Error getting module ${req.params.id}:`, error);
