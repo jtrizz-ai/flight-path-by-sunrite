@@ -17,7 +17,7 @@ struct FlightPathFonts {
     /// Monospaced font for labels and metadata
     static func mono(size: CGFloat = 12) -> Font {
         return Font.system(
-            design: .monospaced,
+            <#Font.TextStyle#>, design: .monospaced,
             weight: .regular
         ).monospacedDigit()
     }
