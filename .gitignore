@@ -61,3 +61,9 @@ ios/*.dSYM
 # Temporary files
 *.tmp
 *.temp
+
+# Local database / secrets
+.env
+!.env.example
+db/data/
+*.pgdata

@@ -187,9 +187,14 @@ export class NotionService {
   }
 
   /**
-   * Check if page should be hidden based on "Hidden Pages" toggle rule
-   * Rule: If page has "🔒 Hidden" or "🔒 Premium" in title, mark as hidden
-   * You can customize this logic based on your specific requirements
+   * Check if page should be hidden.
+   *
+   * TODO (spec section 4 — NON-NEGOTIABLE): the rule is NOT title/tag based.
+   * It is: if a page contains a TOGGLE whose label is exactly "Hidden Pages",
+   * every page nested inside that toggle AND all their descendants are hidden.
+   * The current implementation is a temporary heuristic (title/tag keyword
+   * match) that does NOT satisfy the spec. Implement the toggle walk during
+   * the normalize/hidden-pages phase.
    */
   private isPageHidden(page: any): boolean {
     const title = this.extractTitle(page).toLowerCase()

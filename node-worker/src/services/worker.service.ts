@@ -1,14 +1,14 @@
 import { NotionService } from './notion.service'
-import { SupabaseService, CrawlStats } from './supabase.service'
+import { DatabaseService, CrawlStats } from './db.service'
 import { config } from '../config'
 
 export class WorkerService {
   private notionService: NotionService
-  private supabaseService: SupabaseService
+  private dbService: DatabaseService
 
   constructor() {
     this.notionService = new NotionService()
-    this.supabaseService = new SupabaseService()
+    this.dbService = new DatabaseService()
   }
 
   /**
@@ -23,21 +23,21 @@ export class WorkerService {
 
       // Test connections
       const notionOk = await this.notionService.testConnection()
-      const supabaseOk = await this.supabaseService.testConnection()
+      const dbOk = await this.dbService.testConnection()
 
-      if (!notionOk || !supabaseOk) {
+      if (!notionOk || !dbOk) {
         throw new Error('Connection tests failed')
       }
 
       // Create crawl log
-      logId = await this.supabaseService.logCrawl({
+      logId = await this.dbService.logCrawl({
         pagesProcessed: 0,
         pagesCreated: 0,
         pagesUpdated: 0,
       }, 'running')
 
       // Get last crawl time
-      const lastCrawl = await this.supabaseService.getLastCrawlTime()
+      const lastCrawl = await this.dbService.getLastCrawlTime()
       if (lastCrawl) {
         console.log(`📅 Last crawl: ${lastCrawl}`)
       }
@@ -48,7 +48,7 @@ export class WorkerService {
 
       if (pages.length === 0) {
         console.warn('⚠️  No pages found during crawl')
-        await this.supabaseService.updateCrawlLog(logId!, {
+        await this.dbService.updateCrawlLog(logId!, {
           pagesProcessed: 0,
           pagesCreated: 0,
           pagesUpdated: 0,
@@ -56,12 +56,12 @@ export class WorkerService {
         return
       }
 
-      // Save to Supabase
-      console.log('💾 Saving pages to Supabase...')
-      const stats = await this.supabaseService.savePages(pages)
+      // Save to Postgres
+      console.log('💾 Saving pages to Postgres...')
+      const stats = await this.dbService.savePages(pages)
 
       // Update crawl log as completed
-      await this.supabaseService.updateCrawlLog(logId!, stats, 'completed')
+      await this.dbService.updateCrawlLog(logId!, stats, 'completed')
 
       console.log('✅ Crawl completed successfully!')
       console.log(`📊 Results: ${stats.pagesCreated} created, ${stats.pagesUpdated} updated, ${stats.pagesProcessed} total`)
@@ -70,7 +70,7 @@ export class WorkerService {
       console.error('❌ Crawl failed:', error)
 
       if (logId) {
-        await this.supabaseService.updateCrawlLog(logId, {
+        await this.dbService.updateCrawlLog(logId, {
           pagesProcessed: 0,
           pagesCreated: 0,
           pagesUpdated: 0,
@@ -160,7 +160,7 @@ export class WorkerService {
     config: any
   }> {
     try {
-      const lastCrawl = await this.supabaseService.getLastCrawlTime()
+      const lastCrawl = await this.dbService.getLastCrawlTime()
 
       return {
         healthy: true,

@@ -1,93 +1,62 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import Link from 'next/link'
+import { auth, signOut } from "@/auth";
+import { query } from "@/lib/db";
+import { redirect } from "next/navigation";
+import Link from "next/link";
 
-async function getAdminData() {
-  const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return null
-  }
-
-  // Check if user is admin
-  const isAdmin = user.email === process.env.ADMIN_EMAIL
-
-  if (!isAdmin) {
-    return null
-  }
-
-  // Get recent crawl logs
-  const { data: crawlLogs } = await supabase
-    .from('crawl_logs')
-    .select('*')
-    .order('started_at', { ascending: false })
-    .limit(10)
-
-  // Get page count
-  const { count: totalPages } = await supabase
-    .from('notion_pages')
-    .select('*', { count: 'exact', head: true })
-
-  // Get hidden pages count
-  const { count: hiddenPages } = await supabase
-    .from('notion_pages')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_hidden', true)
-
-  // Get last successful crawl
-  const { data: lastCrawl } = await supabase
-    .from('crawl_logs')
-    .select('*')
-    .eq('status', 'completed')
-    .order('started_at', { ascending: false })
-    .limit(1)
-    .single()
-
-  return {
-    user,
-    crawlLogs: crawlLogs || [],
-    totalPages: totalPages || 0,
-    hiddenPages: hiddenPages || 0,
-    lastCrawl,
-  }
+async function handleSignOut() {
+  "use server";
+  await signOut({ redirectTo: "/" });
 }
 
-async function triggerCrawl(): Promise<{ success: boolean; message: string }> {
-  const supabase = await createSupabaseServerClient()
+interface AdminStats {
+  totalPages: number;
+  hiddenPages: number;
+  lastSync: string | null;
+}
 
-  try {
-    // This would typically call your worker API or use Supabase Edge Functions
-    // For now, we'll return a message explaining the setup
-    return {
-      success: true,
-      message: 'Crawl triggered. The worker will process this request based on its schedule.'
-    }
-  } catch (error) {
-    return {
-      success: false,
-      message: 'Failed to trigger crawl. Check worker status.'
-    }
-  }
+async function getAdminStats(): Promise<AdminStats> {
+  const total = await query<{ count: string }>(
+    `SELECT count(*)::text AS count FROM notion_pages`
+  );
+  const hidden = await query<{ count: string }>(
+    `SELECT count(*)::text AS count FROM notion_pages WHERE is_hidden = true`
+  );
+  const last = await query<{ last_sync: string | null }>(
+    `SELECT last_sync FROM sync_meta WHERE id = 1`
+  );
+  return {
+    totalPages: Number(total.rows[0]?.count ?? 0),
+    hiddenPages: Number(hidden.rows[0]?.count ?? 0),
+    lastSync: last.rows[0]?.last_sync ?? null,
+  };
 }
 
 export default async function AdminPage() {
-  const data = await getAdminData()
+  const session = await auth();
 
-  if (!data) {
-    redirect('/')
-  }
+  // Admin-only: must be logged in AND have the admin role (from app_users).
+  if (!session?.user) redirect("/");
+  if (session.user.role !== "admin") redirect("/pages");
 
-  const { user, crawlLogs, totalPages, hiddenPages, lastCrawl } = data
+  const stats = await getAdminStats();
+
+  // Allowed domains + invites for a read-only view (add/remove comes in the
+  // admin CRUD phase; the tables already exist and the gate reads from them).
+  const domains = await query<{ domain: string }>(
+    `SELECT domain FROM allowed_domains ORDER BY domain`
+  );
+  const invites = await query<{
+    email: string;
+    status: string;
+  }>(`SELECT email, status FROM invites ORDER BY created_at DESC LIMIT 25`);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      {/* Navigation */}
       <nav className="border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link
-              href="/"
+              href="/pages"
               className="text-2xl font-bold text-white hover:text-orange-400 transition"
             >
               Flight Path
@@ -100,134 +69,126 @@ export default async function AdminPage() {
                 Library
               </Link>
               <div className="text-gray-400">Admin</div>
-              <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-medium">
-                  {user.email?.[0].toUpperCase()}
-                </span>
-              </div>
+              <form action={handleSignOut}>
+                <button
+                  type="submit"
+                  className="text-gray-300 hover:text-white transition"
+                >
+                  Sign Out
+                </button>
+              </form>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Main Content */}
       <div className="relative overflow-hidden">
-        {/* Background decorative elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-40 -right-40 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl" />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          {/* Header */}
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-white mb-2">Admin Portal</h1>
-            <p className="text-gray-400">Manage your Flight Path content and settings</p>
+            <p className="text-gray-400">
+              Manage your Flight Path content and access settings
+            </p>
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div className="bg-slate-900/50 border border-white/10 rounded-lg p-6">
               <div className="text-gray-400 text-sm mb-1">Total Pages</div>
-              <div className="text-3xl font-bold text-white">{totalPages}</div>
-            </div>
-            <div className="bg-slate-900/50 border border-white/10 rounded-lg p-6">
-              <div className="text-gray-400 text-sm mb-1">Hidden Pages</div>
-              <div className="text-3xl font-bold text-orange-400">{hiddenPages}</div>
-            </div>
-            <div className="bg-slate-900/50 border border-white/10 rounded-lg p-6">
-              <div className="text-gray-400 text-sm mb-1">Last Crawl</div>
-              <div className="text-lg font-semibold text-white">
-                {lastCrawl ? new Date(lastCrawl.started_at).toLocaleDateString() : 'Never'}
+              <div className="text-3xl font-bold text-white">
+                {stats.totalPages}
               </div>
             </div>
             <div className="bg-slate-900/50 border border-white/10 rounded-lg p-6">
-              <div className="text-gray-400 text-sm mb-1">Worker Status</div>
-              <div className="text-lg font-semibold text-green-400">Active</div>
+              <div className="text-gray-400 text-sm mb-1">Hidden Pages</div>
+              <div className="text-3xl font-bold text-orange-400">
+                {stats.hiddenPages}
+              </div>
+            </div>
+            <div className="bg-slate-900/50 border border-white/10 rounded-lg p-6">
+              <div className="text-gray-400 text-sm mb-1">Last Sync</div>
+              <div className="text-lg font-semibold text-white">
+                {stats.lastSync
+                  ? new Date(stats.lastSync).toLocaleString()
+                  : "Never"}
+              </div>
             </div>
           </div>
 
-          {/* Manual Crawl */}
+          {/* Manual Crawl (placeholder until the worker is migrated) */}
           <div className="bg-slate-900/50 border border-white/10 rounded-lg p-6 mb-8">
-            <h2 className="text-xl font-semibold text-white mb-4">Manual Crawl</h2>
-            <p className="text-gray-400 mb-4">
-              Trigger a manual crawl of your Notion pages. This will update all content in the database.
+            <h2 className="text-xl font-semibold text-white mb-2">
+              Notion Sync
+            </h2>
+            <p className="text-gray-400 text-sm">
+              {/* TODO: wire this button to the node-worker once it writes to the
+                  local Postgres database. For now it is informational only. */}
+              The Notion crawler (node-worker) writes crawled pages here. After
+              the worker is migrated to this database, this button will trigger
+              a fresh sync.
             </p>
-            <form action={async () => {
-              'use server'
-              const result = await triggerCrawl()
-              console.log(result)
-            }}>
-              <button
-                type="submit"
-                className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg transition"
-              >
-                Trigger Crawl Now
-              </button>
-            </form>
+            <button
+              type="button"
+              disabled
+              className="mt-4 bg-slate-700 text-gray-400 px-6 py-2 rounded-lg cursor-not-allowed"
+            >
+              Sync Now (coming soon)
+            </button>
           </div>
 
-          {/* Recent Crawl Logs */}
-          <div className="bg-slate-900/50 border border-white/10 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-white mb-4">Recent Activity</h2>
-
-            {crawlLogs.length === 0 ? (
-              <div className="text-gray-400">No crawl activity yet.</div>
+          {/* Allowed Domains */}
+          <div className="bg-slate-900/50 border border-white/10 rounded-lg p-6 mb-8">
+            <h2 className="text-xl font-semibold text-white mb-4">
+              Allowed Domains
+            </h2>
+            {domains.rows.length === 0 ? (
+              <div className="text-gray-400 text-sm">No domains configured.</div>
             ) : (
-              <div className="space-y-3">
-                {crawlLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="bg-slate-800/50 border border-white/5 rounded-lg p-4"
+              <ul className="space-y-2">
+                {domains.rows.map((d) => (
+                  <li
+                    key={d.domain}
+                    className="bg-slate-800/50 border border-white/5 rounded-lg px-4 py-2 text-gray-300 font-mono text-sm"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          log.status === 'completed'
-                            ? 'bg-green-500/20 text-green-400'
-                            : log.status === 'running'
-                            ? 'bg-blue-500/20 text-blue-400'
-                            : 'bg-red-500/20 text-red-400'
-                        }`}>
-                          {log.status}
-                        </span>
-                        <span className="text-gray-400 text-sm">
-                          {new Date(log.started_at).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
+                    {d.domain}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {/* TODO: add/remove domains via /api/admin/domains in a later phase. */}
+          </div>
 
-                    <div className="text-sm text-gray-300">
-                      <div>Pages processed: {log.pages_processed}</div>
-                      <div>Pages created: {log.pages_created}</div>
-                      <div>Pages updated: {log.pages_updated}</div>
-                      {log.error_message && (
-                        <div className="text-red-400 mt-1">Error: {log.error_message}</div>
-                      )}
-                    </div>
+          {/* Invites */}
+          <div className="bg-slate-900/50 border border-white/10 rounded-lg p-6">
+            <h2 className="text-xl font-semibold text-white mb-4">Invites</h2>
+            {invites.rows.length === 0 ? (
+              <div className="text-gray-400 text-sm">
+                No invites yet. Add jrizzo@sunritesolarllc.com (or others) to the
+                invites table to let them sign in while invite-required is on.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {invites.rows.map((i) => (
+                  <div
+                    key={i.email}
+                    className="flex items-center justify-between bg-slate-800/50 border border-white/5 rounded-lg px-4 py-2"
+                  >
+                    <span className="text-gray-300 text-sm font-mono">
+                      {i.email}
+                    </span>
+                    <span className="text-xs text-gray-500">{i.status}</span>
                   </div>
                 ))}
               </div>
             )}
-          </div>
-
-          {/* Quick Links */}
-          <div className="mt-8 flex space-x-4">
-            <Link
-              href="/pages"
-              className="text-gray-400 hover:text-white transition"
-            >
-              View Public Pages →
-            </Link>
-            <Link
-              href="https://supabase.com/dashboard"
-              target="_blank"
-              className="text-gray-400 hover:text-white transition"
-            >
-              Supabase Dashboard →
-            </Link>
+            {/* TODO: add/remove invites via /api/admin/invites in a later phase. */}
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -18,14 +18,15 @@
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^25.9.3",
+    "@types/pg": "^8.20.0",
     "nodemon": "^3.1.14",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3"
   },
   "dependencies": {
     "@notionhq/client": "^5.22.0",
-    "@supabase/supabase-js": "^2.108.2",
     "dotenv": "^17.4.2",
+    "pg": "^8.21.0",
     "zod": "^4.4.3"
   }
 }
