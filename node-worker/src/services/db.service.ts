@@ -59,6 +59,12 @@ export class DatabaseService {
     // Refresh the "last sync" summary used by the admin portal.
     await this.updateSyncMeta(pages.length)
 
+    // TODO (deletion handling): pages removed from Notion are currently left in
+    // the database as stale rows (e.g. "Door Pitch" was de-listed from the
+    // wiki). On the next pass, mark pages not seen in `pages` as deleted/
+    // hidden, or remove them. Do NOT delete on a failed/partial crawl — only
+    // after a fully successful one. Tracked separately from this method.
+
     console.log(`✅ Pages saved: ${stats.pagesCreated} created, ${stats.pagesUpdated} updated`)
     return stats
   }
@@ -80,7 +86,7 @@ export class DatabaseService {
       `INSERT INTO notion_pages
          (notion_page_id, parent_page_id, child_ids, title, slug,
           icon, cover, url, tags, is_hidden, content)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+       VALUES ($1, $2, $3::text[], $4, $5, $6, $7, $8, $9::text[], $10, $11)`,
       [
         page.id,
         page.parent_id,
@@ -91,7 +97,7 @@ export class DatabaseService {
         page.cover,
         page.url,
         [], // TODO: extract Tags multi-select in notion.service.ts (spec section 11)
-        page.is_hidden,
+        Boolean(page.is_hidden),
         page.content,
       ]
     )
@@ -103,7 +109,7 @@ export class DatabaseService {
     await this.pool.query(
       `UPDATE notion_pages SET
           parent_page_id = $2,
-          child_ids      = $3,
+          child_ids      = $3::text[],
           title          = $4,
           icon           = $5,
           cover          = $6,
@@ -120,7 +126,7 @@ export class DatabaseService {
         page.icon,
         page.cover,
         page.url,
-        page.is_hidden,
+        Boolean(page.is_hidden),
         page.content,
       ]
     )
@@ -185,7 +191,7 @@ export class DatabaseService {
   /** Update the single-row sync summary the admin portal displays. */
   private async updateSyncMeta(pageCount: number): Promise<void> {
     await this.pool.query(
-      `UPDATE sync_meta SET last_sync = NOW(), page_count = $2 WHERE id = 1`,
+      `UPDATE sync_meta SET last_sync = NOW(), page_count = $1 WHERE id = 1`,
       [pageCount]
     )
   }
@@ -200,7 +206,7 @@ export class DatabaseService {
       `INSERT INTO crawl_logs
          (status, pages_processed, pages_created, pages_updated,
           error_message, started_at, completed_at)
-       VALUES ($1, $2, $3, $4, $5, NOW(), $6)
+       VALUES ($1, $2, $3, $4, $5::text, NOW(), $6)
        RETURNING id`,
       [
         status,
@@ -227,7 +233,7 @@ export class DatabaseService {
           pages_processed  = $3,
           pages_created    = $4,
           pages_updated    = $5,
-          error_message    = $6,
+          error_message    = $6::text,
           completed_at     = NOW()
         WHERE id = $1`,
       [

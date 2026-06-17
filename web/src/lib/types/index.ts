@@ -57,26 +57,31 @@ export interface CrawlLog {
   completed_at: string | null;
 }
 
-// Content block (rendered from the normalized Notion body). Field names match
-// what the worker currently writes; to be reconciled with CLAUDE.md section 10.
-// TODO: replace with the canonical Block union from the spec.
-export interface ContentBlock {
-  type:
-    | "paragraph"
-    | "heading_1"
-    | "heading_2"
-    | "heading_3"
-    | "bulleted_list"
-    | "numbered_list"
-    | "to_do"
-    | "toggle"
-    | "callout"
-    | "quote"
-    | "divider"
-    | "code";
-  content: any;
-  text?: string;
-  level?: number;
-  checked?: boolean;
-  children?: ContentBlock[];
-}
+// Canonical content block (mirrors CLAUDE.md section 10 and the worker's
+// normalize.ts). Two extensions: text-bearing blocks carry optional `runs`
+// (preserves hyperlinks + bold/italic/etc), and image carries optional `href`
+// (the "clickable image" convention: a URL in an image's caption -> link).
+export type Run = {
+  text: string;
+  href?: string;
+  bold?: boolean;
+  italic?: boolean;
+  code?: boolean;
+  strikethrough?: boolean;
+};
+
+export type Block =
+  | { type: "heading"; level: 1 | 2 | 3; text: string; runs?: Run[] }
+  | { type: "paragraph"; text: string; runs?: Run[] }
+  | { type: "bulleted_item"; text: string; runs?: Run[] }
+  | { type: "numbered_item"; text: string; runs?: Run[] }
+  | { type: "todo"; text: string; checked: boolean; runs?: Run[] }
+  | { type: "toggle"; text: string; children: Block[]; runs?: Run[] }
+  | { type: "callout"; text: string; emoji?: string; runs?: Run[] }
+  | { type: "quote"; text: string; runs?: Run[] }
+  | { type: "code"; language?: string; text: string }
+  | { type: "image"; url: string; caption?: string; href?: string }
+  | { type: "bookmark"; url: string; title?: string }
+  | { type: "page_link"; pageId: string; title: string; slug?: string }
+  | { type: "file"; url: string; name?: string; caption?: string }
+  | { type: "divider" };
