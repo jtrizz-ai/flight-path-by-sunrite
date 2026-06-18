@@ -1,156 +1,128 @@
 import SwiftUI
 
+// MARK: - Chat
+
 struct ChatView: View {
-    @ObservedObject var viewModel: ModuleViewModel
-    @State private var messageText = ""
-    @State private var isTyping = false
-    @FocusState private var isInputFocused: Bool
+    @EnvironmentObject var app: AppState
+    @State private var draft = ""
+    @FocusState private var inputFocused: Bool
 
     var body: some View {
-        FlightPathBackground {
+        ZStack {
+            Color.fpBG.ignoresSafeArea()
+
             VStack(spacing: 0) {
-                // Header
-                VStack(spacing: FlightPathTheme.Spacing.s8) {
-                    HeroWordmark("FLIGHT PATH ASSISTANT")
-                    MonoLabel(text: "Ask questions about your program")
-                }
-                .padding(FlightPathTheme.Spacing.s16)
-                .background(FlightPathTheme.Background.secondary.opacity(0.5))
-
                 // Messages
-                ScrollView {
-                    VStack(spacing: FlightPathTheme.Spacing.s16) {
-                        ForEach(viewModel.chatMessages) { message in
-                            ChatBubble(message: message)
-                                .id(message.id)
-                        }
-
-                        if isTyping {
-                            HStack {
-                                FlightPathCard {
-                                    HStack(spacing: FlightPathTheme.Spacing.s8) {
-                                        ProgressView()
-                                            .progressViewStyle(CircularProgressViewStyle(tint: FlightPathTheme.Text.secondary))
-                                        Text("Thinking...")
-                                            .font(FlightPathFonts.body())
-                                            .foregroundColor(FlightPathTheme.Text.secondary)
-                                    }
-                                    .padding(FlightPathTheme.Spacing.s12)
-                                }
-                                Spacer()
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            ForEach(app.messages) { message in
+                                ChatBubble(message: message)
+                                    .id(message.id)
                             }
-                            .padding(.horizontal, FlightPathTheme.Spacing.s16)
                         }
+                        .padding(20)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding(FlightPathTheme.Spacing.s16)
-                }
-                .frame(maxHeight: .infinity)
-
-                // Input area
-                VStack(spacing: FlightPathTheme.Spacing.s8) {
-                    HStack(spacing: FlightPathTheme.Spacing.s8) {
-                        TextField("Ask about Flight Path...", text: $messageText)
-                            .font(FlightPathFonts.body())
-                            .foregroundColor(FlightPathTheme.Text.primary)
-                            .padding(FlightPathTheme.Spacing.s12)
-                            .background(FlightPathTheme.Background.secondary)
-                            .cornerRadius(FlightPathTheme.Radius.medium)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: FlightPathTheme.Radius.medium)
-                                    .stroke(FlightPathTheme.Border.subtle, lineWidth: 1)
-                            )
-                            .focused($isInputFocused)
-                            .onSubmit {
-                                sendMessage()
+                    .onChange(of: app.messages.count) { _, _ in
+                        if let last = app.messages.last {
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                proxy.scrollTo(last.id, anchor: .bottom)
                             }
-
-                        Button {
-                            sendMessage()
-                        } label: {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.title)
-                                .foregroundColor(canSend ? FlightPathTheme.Accent.primary : FlightPathTheme.Text.tertiary)
                         }
-                        .disabled(!canSend || isTyping)
-                    }
-                    .padding(.horizontal, FlightPathTheme.Spacing.s16)
-                    .padding(.vertical, FlightPathTheme.Spacing.s8)
-                }
-                .background(FlightPathTheme.Background.secondary.opacity(0.5))
-            }
-            .navigationTitle("Chat")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        clearChat()
-                    } label: {
-                        Image(systemName: "trash")
-                            .foregroundColor(FlightPathTheme.Text.primary)
                     }
                 }
-            }
-        }
-    }
 
-    private var canSend: Bool {
-        !messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
+                // Composer
+                HStack(spacing: 10) {
+                    TextField("", text: $draft, prompt: Text("Message Flight Path AI...")
+                        .foregroundColor(.ink3))
+                        .font(FPFont.sans(14))
+                        .foregroundColor(.ink)
+                        .focused($inputFocused)
+                        .submitLabel(.send)
+                        .onSubmit(send)
+                        .padding(.horizontal, 16)
+                        .frame(height: 44)
+                        .background(Color.white.opacity(0.04))
+                        .overlay(
+                            Capsule().stroke(Color.line, lineWidth: 1)
+                        )
+                        .clipShape(Capsule())
 
-    private func sendMessage() {
-        guard canSend else { return }
-
-        let userMessage = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        messageText = ""
-        isInputFocused = false
-
-        // Add user message
-        let userChatMessage = ChatMessage(role: .user, content: userMessage)
-        viewModel.chatMessages.append(userChatMessage)
-
-        // Show typing indicator
-        isTyping = true
-
-        Task {
-            do {
-                // Send message to backend
-                let response = try await APIService.shared.sendChat(message: userMessage)
-
-                // Add assistant message with sources
-                let sources = response.sources.map { Source(fromAPIResponse: $0) }
-                let assistantMessage = ChatMessage(
-                    role: .assistant,
-                    content: response.answer,
-                    sources: sources
+                    Button(action: send) {
+                        Image(systemName: "paperplane.fill")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundColor(.white)
+                            .frame(width: 44, height: 44)
+                            .background(Color.fpAccent)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .background(
+                    Color.fpBG.opacity(0.6)
+                        .background(.ultraThinMaterial)
                 )
-
-                await MainActor.run {
-                    viewModel.chatMessages.append(assistantMessage)
-                    isTyping = false
-                }
-            } catch {
-                await MainActor.run {
-                    // Add error message
-                    let errorMessage = ChatMessage(
-                        role: .assistant,
-                        content: "Sorry, I couldn't process that request. Please make sure the backend is running and try again."
-                    )
-                    viewModel.chatMessages.append(errorMessage)
-                    isTyping = false
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Color.line).frame(height: 1)
                 }
             }
         }
     }
 
-    private func clearChat() {
-        withAnimation {
-            viewModel.chatMessages.removeAll()
-        }
+    private func send() {
+        let text = draft
+        draft = ""
+        app.send(text)
     }
 }
 
-#Preview {
-    NavigationStack {
-        ChatView(viewModel: ModuleViewModel())
+// MARK: - Chat bubble
+
+private struct ChatBubble: View {
+    let message: ChatMessage
+
+    private var isMe: Bool { message.role == .me }
+
+    var body: some View {
+        HStack {
+            if isMe { Spacer(minLength: 40) }
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(message.who.uppercased())
+                    .font(FPFont.mono(9))
+                    .tracking(1.6)
+                    .foregroundColor(isMe ? Color.white.opacity(0.7) : .ink3)
+                Text(message.text)
+                    .font(FPFont.sans(13.5))
+                    .foregroundColor(isMe ? .white : .ink)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .background(isMe ? Color.fpAccent : Color.card)
+            .overlay(
+                bubbleShape
+                    .stroke(isMe ? Color.clear : Color.cardLine, lineWidth: 1)
+            )
+            .clipShape(bubbleShape)
+
+            if !isMe { Spacer(minLength: 40) }
+        }
+    }
+
+    // Rounded bubble with one tighter corner (mirrors the design's tail).
+    private var bubbleShape: UnevenRoundedRectangle {
+        let big: CGFloat = 16
+        let small: CGFloat = 5
+        return UnevenRoundedRectangle(
+            topLeadingRadius: big,
+            bottomLeadingRadius: isMe ? big : small,
+            bottomTrailingRadius: isMe ? small : big,
+            topTrailingRadius: big
+        )
     }
 }

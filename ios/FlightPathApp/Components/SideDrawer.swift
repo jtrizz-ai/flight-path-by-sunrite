@@ -1,0 +1,144 @@
+import SwiftUI
+
+// MARK: - Slide-in navigation drawer
+
+struct SideDrawer: View {
+    @EnvironmentObject var app: AppState
+
+    private struct Link: Identifiable {
+        let id = UUID()
+        let title: String
+        let systemImage: String?
+        let useBrandMark: Bool
+        let tab: AppTab?
+    }
+
+    private let navLinks: [Link] = [
+        .init(title: "Home", systemImage: "house", useBrandMark: false, tab: .home),
+        .init(title: "Schedule", systemImage: "calendar", useBrandMark: false, tab: .schedule),
+        .init(title: "Tally", systemImage: "chart.bar", useBrandMark: false, tab: .tally),
+        .init(title: "Chat", systemImage: "bubble.left", useBrandMark: false, tab: .chat)
+    ]
+
+    private let extraLinks: [Link] = [
+        .init(title: "Flight Path Program", systemImage: nil, useBrandMark: true, tab: nil),
+        .init(title: "Profile", systemImage: "person.crop.circle", useBrandMark: false, tab: nil),
+        .init(title: "Settings", systemImage: "gearshape", useBrandMark: false, tab: nil)
+    ]
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            // Scrim
+            if app.drawerOpen {
+                Color.black.opacity(0.5)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .onTapGesture { close() }
+            }
+
+            // Panel
+            if app.drawerOpen {
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    panel
+                }
+                .transition(.move(edge: .trailing))
+            }
+        }
+        .animation(.spring(response: 0.34, dampingFraction: 0.86), value: app.drawerOpen)
+    }
+
+    private var panel: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // User block
+            HStack(spacing: 12) {
+                Text(app.userInitials)
+                    .font(FPFont.display(18))
+                    .foregroundColor(.white)
+                    .frame(width: 46, height: 46)
+                    .background(
+                        LinearGradient(
+                            colors: [.fpAccent, .fpAccent2],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                    )
+                    .clipShape(Circle())
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(app.userName)
+                        .font(FPFont.sans(15, .bold))
+                        .foregroundColor(.ink)
+                    Text(app.userEmail)
+                        .font(FPFont.mono(10))
+                        .foregroundColor(.ink3)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.bottom, 20)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(Color.line).frame(height: 1)
+            }
+            .padding(.bottom, 14)
+
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(navLinks) { link in row(link) }
+
+                Rectangle().fill(Color.line)
+                    .frame(height: 1)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 12)
+
+                ForEach(extraLinks) { link in row(link) }
+            }
+
+            Spacer()
+
+            Text("SUNRITE SOLAR · FLIGHT PATH v1.0")
+                .font(FPFont.mono(9.5))
+                .tracking(1.3)
+                .foregroundColor(.ink3)
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 24)
+        .frame(width: 300, alignment: .leading)
+        .frame(maxHeight: .infinity)
+        .background(Color.fpBG2.ignoresSafeArea())
+        .overlay(alignment: .leading) {
+            Rectangle().fill(Color.line).frame(width: 1).ignoresSafeArea()
+        }
+    }
+
+    private func row(_ link: Link) -> some View {
+        Button {
+            if let tab = link.tab { app.select(tab) }
+            close()
+        } label: {
+            HStack(spacing: 13) {
+                Group {
+                    if link.useBrandMark {
+                        BrandMarkView(size: 19, color: .ink3, lineWidth: 2)
+                    } else if let name = link.systemImage {
+                        Image(systemName: name)
+                            .font(.system(size: 17, weight: .regular))
+                            .foregroundColor(.ink3)
+                            .frame(width: 19, height: 19)
+                    }
+                }
+                Text(link.title)
+                    .font(FPFont.sans(14, .semibold))
+                    .foregroundColor(.ink2)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 13)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func close() {
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+            app.drawerOpen = false
+        }
+    }
+}
