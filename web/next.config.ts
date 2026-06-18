@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  // Allow the Abacus AI preview domain to access dev resources
+  allowedDevOrigins: ['14f6d652c.na121.preview.abacusai.app'],
 };
 
 export default nextConfig;

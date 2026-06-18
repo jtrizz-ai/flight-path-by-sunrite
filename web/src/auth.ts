@@ -48,9 +48,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // Returning false denies the login and sends the user to `pages.error`.
     async signIn({ user }) {
       const email = user?.email?.trim().toLowerCase();
-      if (!email) return false;
+      console.log(`[auth] signIn callback triggered for: ${email || 'NO EMAIL'}`);
+      
+      if (!email) {
+        console.error('[auth] signIn failed: no email provided');
+        return false;
+      }
 
       const result = await checkLoginGate(email);
+      console.log(`[auth] gate check result for ${email}:`, result);
+      
       if (!result.allowed) {
         // Safe, secret-free log so the admin can see who was turned away.
         console.warn(`[auth] login denied (${result.reason}): ${email}`);
@@ -58,7 +65,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
 
       // Allowed: make sure a row exists in app_users (with their role).
+      console.log(`[auth] creating/updating app_user for ${email}`);
       await upsertAppUser(email, user.name ?? null, user.image ?? null);
+      console.log(`[auth] signIn successful for ${email}`);
       return true;
     },
 
