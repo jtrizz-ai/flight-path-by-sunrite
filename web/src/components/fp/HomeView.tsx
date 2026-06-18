@@ -1,0 +1,61 @@
+'use client';
+
+import { LaunchLights } from './LaunchLights';
+
+export function HomeView({ userName }: { userName: string }) {
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      {/* Background */}
+      <div className="absolute inset-0" style={{ backgroundColor: 'var(--color-fp-bg)' }} />
+      
+      {/* Cinematic image */}
+      <img
+        src="/images/home_scene.png"
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+
+      {/* Scrims - radial + linear gradients */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: `
+            radial-gradient(90% 60% at 50% 38%, rgba(6,6,7,0) 40%, rgba(6,6,7,0.5) 100%),
+            linear-gradient(to bottom, rgba(6,6,7,0.45) 0%, rgba(6,6,7,0) 24%, rgba(6,6,7,0) 62%, rgba(6,6,7,0.78) 100%)
+          `,
+        }}
+      />
+
+      {/* Animated runway lights */}
+      <LaunchLights />
+
+      {/* Hero content */}
+      <div className="absolute inset-0 flex flex-col items-center justify-between px-5 py-10 md:py-12 pointer-events-none">
+        <div className="text-center">
+          <div
+            className="font-[var(--font-fp-mono)] text-[11px] tracking-[0.42em] uppercase mb-3"
+            style={{ color: 'var(--color-fp-ink-2)' }}
+          >
+            CLEARED FOR DEPARTURE
+          </div>
+          <h1
+            className="font-[var(--font-fp-display)] text-5xl md:text-7xl lg:text-8xl uppercase leading-[0.9] tracking-[0.02em]"
+            style={{
+              color: 'var(--color-fp-ink)',
+              textShadow: '0 6px 44px rgba(0,0,0,0.9)',
+            }}
+          >
+            FLIGHT PATH
+          </h1>
+        </div>
+
+        <div
+          className="font-[var(--font-fp-mono)] text-[11px] tracking-[0.14em] uppercase text-center max-w-md"
+          style={{ color: 'var(--color-fp-ink-2)' }}
+        >
+          Welcome back, {userName} — ready for departure
+        </div>
+      </div>
+    </div>
+  );
+}

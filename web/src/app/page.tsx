@@ -2,12 +2,12 @@ import Link from "next/link";
 import { auth, signIn } from "@/auth";
 import { redirect } from "next/navigation";
 
-// Server action: kicks off the Google OAuth flow, then sends the user to /pages
+// Server action: kicks off the Google OAuth flow, then sends the user to /flight-path
 // on success. If the gate (lib/auth/gate.ts) rejects them, Auth.js bounces them
 // back here with ?error and we show a friendly message.
 async function handleLogin() {
   "use server";
-  await signIn("google", { redirectTo: "/pages" });
+  await signIn("google", { redirectTo: "/flight-path" });
 }
 
 export default async function Home({
@@ -18,8 +18,8 @@ export default async function Home({
   const session = await auth();
   const { error } = await searchParams;
 
-  // Logged-in users skip the landing page and go straight to the library.
-  if (session?.user) redirect("/pages");
+  // Logged-in users skip the landing page and go straight to Flight Path.
+  if (session?.user) redirect("/flight-path");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">

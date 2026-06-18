@@ -1,26 +1,133 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Flight Path Design System Fonts */
+
+@font-face {
+  font-family: 'Anton';
+  src: url('/fonts/Anton-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/JetBrainsMono-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/JetBrainsMono-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/JetBrainsMono-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('/fonts/Archivo-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('/fonts/Archivo-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('/fonts/Archivo-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('/fonts/Archivo-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Flight Path Design Tokens */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Colors */
+  --color-fp-bg: #060607;
+  --color-fp-bg-2: #0c0c10;
+  --color-fp-accent: #E8472A;
+  --color-fp-accent-2: #FF8A5B;
+  --color-fp-ink: #ffffff;
+  --color-fp-ink-2: rgba(255, 255, 255, 0.72);
+  --color-fp-ink-3: rgba(255, 255, 255, 0.45);
+  --color-fp-line: rgba(255, 255, 255, 0.14);
+  --color-fp-card: rgba(255, 255, 255, 0.045);
+  --color-fp-card-line: rgba(255, 255, 255, 0.10);
+  --color-fp-runway-light: #FFCB9C;
+
+  /* Fonts */
+  --font-fp-display: 'Anton', sans-serif;
+  --font-fp-mono: 'JetBrains Mono', 'Menlo', monospace;
+  --font-fp-sans: 'Archivo', sans-serif;
+
+  /* Radius */
+  --radius-fp-card: 18px;
+  --radius-fp-card-lg: 22px;
+  --radius-fp-button: 14px;
+  --radius-fp-tile: 16px;
+  --radius-fp-pill: 999px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-fp-sans);
+  color: var(--color-fp-ink);
+  background: radial-gradient(130% 100% at 50% -10%, #15151c 0%, #050507 60%);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Grain texture overlay (applied via component) */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  background-image: url('/images/grain.svg');
+  background-repeat: repeat;
+  z-index: 50;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 0;
 }
