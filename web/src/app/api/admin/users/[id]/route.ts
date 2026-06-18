@@ -15,7 +15,7 @@ import type { AppUser, UserRole, UserStatus } from "@/lib/types";
 // PATCH /api/admin/users/[id] - Update user role or status (admin only)
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   
@@ -26,7 +26,7 @@ export async function PATCH(
   try {
     const body = await request.json();
     const { role, status } = body as { role?: UserRole; status?: UserStatus };
-    const userId = params.id;
+    const { id: userId } = await params;
 
     // Validate inputs
     const validRoles: UserRole[] = ["Admin", "Manager", "Team Lead", "Sales", "Field Marketer"];
@@ -87,7 +87,7 @@ export async function PATCH(
 // DELETE /api/admin/users/[id] - Delete user (admin only)
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   
@@ -96,7 +96,7 @@ export async function DELETE(
   }
 
   try {
-    const userId = params.id;
+    const { id: userId } = await params;
 
     // Prevent self-deletion
     if (session.user.id === userId) {
