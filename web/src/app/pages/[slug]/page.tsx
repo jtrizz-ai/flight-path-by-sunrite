@@ -238,7 +238,7 @@ export default async function PageDetailPage({
               >
                 Library
               </Link>
-              {session.user.role === "admin" && (
+              {session.user.role === "Admin" && (
                 <Link
                   href="/admin"
                   className="text-gray-300 hover:text-white transition"

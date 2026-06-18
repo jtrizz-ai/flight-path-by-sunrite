@@ -3,10 +3,12 @@ import type { JWT } from "next-auth/jwt";
 import Google from "next-auth/providers/google";
 import { checkLoginGate, upsertAppUser } from "@/lib/auth/gate";
 import { query } from "@/lib/db";
+import type { UserRole } from "@/lib/types";
 
 // Our private JWT fields (cached at first sign-in). We type these explicitly
 // rather than via module augmentation, which is brittle across Auth.js betas.
-type AppJWT = JWT & { uid?: string; role?: "member" | "admin" };
+// Phase 1: Updated to use the new 5-role system
+type AppJWT = JWT & { uid?: string; role?: UserRole };
 
 // ─────────────────────────────────────────────────────────────────────────
 // Auth.js (NextAuth v5) central config.
@@ -63,12 +65,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // ── FIRST SIGN-IN ONLY ──────────────────────────────────────────────
     // `account`/`profile` are present only on the initial OAuth exchange, so
     // the DB lookup happens once and is then cached in the JWT.
+    // Phase 1: Updated to use the new UserRole type
     async jwt({ token, account, profile }) {
       const t = token as AppJWT;
       if (account && profile) {
         const email = (profile as { email?: string })?.email?.toLowerCase();
         if (email) {
-          const { rows } = await query<{ id: string; role: "member" | "admin" }>(
+          const { rows } = await query<{ id: string; role: UserRole }>(
             `SELECT id, role FROM app_users WHERE lower(email) = $1 LIMIT 1`,
             [email]
           );

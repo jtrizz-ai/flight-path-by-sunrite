@@ -5,12 +5,19 @@
 // and we type query results inline at each call site.
 
 // A user row from `app_users`.
+// Updated in Phase 1: 5 new roles, status field, profile fields (phone, town)
+export type UserRole = "Admin" | "Manager" | "Team Lead" | "Sales" | "Field Marketer";
+export type UserStatus = "active" | "paused";
+
 export interface AppUser {
   id: string;
   email: string;
   full_name: string | null;
   avatar_url: string | null;
-  role: "member" | "admin";
+  role: UserRole;
+  status: UserStatus;
+  phone: string | null;
+  town: string | null;
   created_at: string;
   last_active_at: string;
 }

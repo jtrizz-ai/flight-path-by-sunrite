@@ -46,7 +46,7 @@ export default async function PagesPage() {
               Flight Path
             </Link>
             <div className="flex items-center space-x-4">
-              {session.user.role === "admin" && (
+              {session.user.role === "Admin" && (
                 <Link
                   href="/admin"
                   className="text-gray-300 hover:text-white transition"

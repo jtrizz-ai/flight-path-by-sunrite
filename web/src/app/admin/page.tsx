@@ -2,6 +2,7 @@ import { auth, signOut } from "@/auth";
 import { query } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { UserManagementSection } from "./components/UserManagementSection";
 
 async function handleSignOut() {
   "use server";
@@ -34,9 +35,10 @@ async function getAdminStats(): Promise<AdminStats> {
 export default async function AdminPage() {
   const session = await auth();
 
-  // Admin-only: must be logged in AND have the admin role (from app_users).
+  // Admin-only: must be logged in AND have the Admin role (from app_users).
+  // Phase 1: Updated to use new role name "Admin" (capitalized)
   if (!session?.user) redirect("/");
-  if (session.user.role !== "admin") redirect("/pages");
+  if (session.user.role !== "Admin") redirect("/pages");
 
   const stats = await getAdminStats();
 
@@ -117,6 +119,11 @@ export default async function AdminPage() {
                   : "Never"}
               </div>
             </div>
+          </div>
+
+          {/* Phase 1: User Management */}
+          <div className="mb-8">
+            <UserManagementSection />
           </div>
 
           {/* Manual Crawl (placeholder until the worker is migrated) */}
