@@ -11,11 +11,23 @@ struct ScheduleView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    ViewHeader(
-                        eyebrow: "SunRite Solar",
-                        title: "Schedule",
-                        subtitle: "Flight Path Program · 4 modules"
-                    )
+                    // Page title section
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("FLIGHT PATH PROGRAM")
+                            .font(FPFont.mono(10))
+                            .tracking(3.4)
+                            .foregroundColor(.ink3)
+                        Text("SCHEDULE")
+                            .font(FPFont.display(38))
+                            .foregroundColor(.ink)
+                        Text("\(modules.count) modules")
+                            .font(FPFont.mono(11))
+                            .tracking(0.6)
+                            .foregroundColor(.ink2)
+                            .padding(.top, 4)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, 20)
 
                     VStack(spacing: 10) {
                         ForEach(modules) { module in
@@ -61,7 +73,8 @@ private struct ScheduleRow: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 15)
             .cardSurface()
-            .contentShape(Rectangle())
+            // Match hit-test area to the visual rounded-rectangle card shape
+            .contentShape(RoundedRectangle(cornerRadius: FPRadius.card))
         }
         .buttonStyle(.plain)
     }

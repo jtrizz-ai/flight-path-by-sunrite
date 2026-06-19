@@ -1,4 +1,5 @@
 import SwiftUI
+import GoogleSignIn
 
 // MARK: - App navigation tabs
 
@@ -27,11 +28,48 @@ final class AppState: ObservableObject {
     // Chat
     @Published var messages: [ChatMessage] = ChatMessage.samples
 
+    // Auth
+    // TODO: Change back to false before shipping — dev bypass so the full shell is always visible
+    @Published var isAuthenticated = true
+    @Published var isSigningIn = false
+
     // Profile (static for this build — wired to backend later)
     let userName = "Jonathan Rizzo"
     let userEmail = "jrizzo@sunritesolarllc.com"
     var userInitials: String {
         userName.split(separator: " ").compactMap { $0.first }.prefix(2).map(String.init).joined()
+    }
+
+    func signInWithGoogle() async {
+        isSigningIn = true
+        defer { isSigningIn = false }
+
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootVC = windowScene.windows.first(where: \.isKeyWindow)?.rootViewController
+        else { return }
+
+        do {
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootVC)
+            // result.user.profile holds name/email/photo when needed
+            _ = result.user
+            isAuthenticated = true
+        } catch {
+            // User cancelled or auth error — stay on login screen
+        }
+    }
+
+    func restorePreviousSignIn() async {
+        do {
+            try await GIDSignIn.sharedInstance.restorePreviousSignIn()
+            isAuthenticated = true
+        } catch {
+            // No cached session; user will sign in manually
+        }
+    }
+
+    func signOut() {
+        GIDSignIn.sharedInstance.signOut()
+        isAuthenticated = false
     }
 
     func select(_ newTab: AppTab) {

@@ -14,21 +14,21 @@ struct SideDrawer: View {
     }
 
     private let navLinks: [Link] = [
-        .init(title: "Home", systemImage: "house", useBrandMark: false, tab: .home),
-        .init(title: "Schedule", systemImage: "calendar", useBrandMark: false, tab: .schedule),
-        .init(title: "Tally", systemImage: "chart.bar", useBrandMark: false, tab: .tally),
-        .init(title: "Chat", systemImage: "bubble.left", useBrandMark: false, tab: .chat)
+        .init(title: "Home",     systemImage: "house",       useBrandMark: false, tab: .home),
+        .init(title: "Schedule", systemImage: "calendar",    useBrandMark: false, tab: .schedule),
+        .init(title: "Tally",    systemImage: "chart.bar",   useBrandMark: false, tab: .tally),
+        .init(title: "Chat",     systemImage: "bubble.left", useBrandMark: false, tab: .chat)
     ]
 
     private let extraLinks: [Link] = [
-        .init(title: "Flight Path Program", systemImage: nil, useBrandMark: true, tab: nil),
-        .init(title: "Profile", systemImage: "person.crop.circle", useBrandMark: false, tab: nil),
-        .init(title: "Settings", systemImage: "gearshape", useBrandMark: false, tab: nil)
+        .init(title: "Flight Path Program", systemImage: nil,                    useBrandMark: true,  tab: nil),
+        .init(title: "Profile",             systemImage: "person.crop.circle",   useBrandMark: false, tab: nil),
+        .init(title: "Settings",            systemImage: "gearshape",            useBrandMark: false, tab: nil)
     ]
 
     var body: some View {
         ZStack(alignment: .trailing) {
-            // Scrim
+            // Scrim — must cover the full screen so AppHeader/TabBar are blocked when open
             if app.drawerOpen {
                 Color.black.opacity(0.5)
                     .ignoresSafeArea()
@@ -45,7 +45,12 @@ struct SideDrawer: View {
                 .transition(.move(edge: .trailing))
             }
         }
+        // Explicit full-screen frame so the scrim fills the whole shell.
+        // Without this the ZStack collapses to the 300pt panel width and the
+        // scrim does not cover the left portion of the screen.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.spring(response: 0.34, dampingFraction: 0.86), value: app.drawerOpen)
+        .allowsHitTesting(app.drawerOpen)
     }
 
     private var panel: some View {
@@ -102,7 +107,7 @@ struct SideDrawer: View {
         .padding(.vertical, 24)
         .frame(width: 300, alignment: .leading)
         .frame(maxHeight: .infinity)
-        .background(Color.fpBG2.ignoresSafeArea())
+        .background(Color.fpBG2, ignoresSafeAreaEdges: .all)
         .overlay(alignment: .leading) {
             Rectangle().fill(Color.line).frame(width: 1).ignoresSafeArea()
         }

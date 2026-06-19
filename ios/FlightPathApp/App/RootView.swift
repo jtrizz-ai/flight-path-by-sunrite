@@ -3,9 +3,19 @@ import SwiftUI
 // MARK: - Root shell (header · active view · tab bar · drawer)
 
 struct RootView: View {
-    @StateObject private var app = AppState()
+    @EnvironmentObject var app: AppState
 
     var body: some View {
+        Group {
+            if app.isAuthenticated {
+                mainShell
+            } else {
+                LoginView()
+            }
+        }
+    }
+
+    private var mainShell: some View {
         ZStack {
             Color.fpBG.ignoresSafeArea()
 
@@ -26,15 +36,14 @@ struct RootView: View {
                 TabBar()
             }
 
-            // Slide-in drawer sits above everything
             SideDrawer()
         }
-        .environmentObject(app)
     }
 }
 
 #Preview {
     RootView()
+        .environmentObject(AppState())
         .preferredColorScheme(.dark)
         .onAppear { FPFonts.registerAll() }
 }

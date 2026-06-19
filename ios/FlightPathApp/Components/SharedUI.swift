@@ -70,6 +70,9 @@ struct ViewBackground: View {
                 startPoint: .top, endPoint: .bottom
             )
         }
+        // Explicit frame prevents the ZStack from over-expanding beyond the content slot.
+        // Must come before .clipped() so the clip boundary matches the intended frame.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
     }
 }
