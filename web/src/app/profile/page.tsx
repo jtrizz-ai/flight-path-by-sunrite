@@ -1,6 +1,11 @@
-import { auth } from "@/auth";
+import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import ProfileForm from "@/components/fp/ProfileForm";
+
+async function handleSignOut() {
+  "use server";
+  await signOut({ redirectTo: "/" });
+}
 
 // Force this page to be dynamic so the session is always read fresh.
 export const dynamic = "force-dynamic";
@@ -30,7 +35,7 @@ export default async function ProfilePage() {
           {session.user.email}
         </p>
         <div className="mt-10">
-          <ProfileForm />
+          <ProfileForm signOutAction={handleSignOut} />
         </div>
       </div>
     </main>

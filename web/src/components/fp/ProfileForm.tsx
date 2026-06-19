@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { signOut } from "@/auth";
 
 type UserProfile = {
   id: string;
@@ -13,7 +12,11 @@ type UserProfile = {
   hireDate: string | null;
 };
 
-export default function ProfileForm() {
+export default function ProfileForm({
+  signOutAction,
+}: {
+  signOutAction: () => Promise<void>;
+}) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [fullName, setFullName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -116,7 +119,7 @@ export default function ProfileForm() {
           {saving ? "Saving…" : "Save"}
         </button>
         <button
-          onClick={() => signOut({ redirectTo: "/" })}
+          onClick={() => signOutAction()}
           className="font-[var(--font-fp-mono)] text-xs uppercase tracking-[0.2em] hover:opacity-80"
           style={{ color: "var(--color-fp-ink-3)" }}
         >
