@@ -3,6 +3,7 @@ import { query } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { UserManagementSection } from "./components/UserManagementSection";
+import { LlmConfigSection } from "./components/LlmConfigSection";
 
 async function handleSignOut() {
   "use server";
@@ -124,6 +125,11 @@ export default async function AdminPage() {
           {/* Phase 1: User Management */}
           <div className="mb-8">
             <UserManagementSection />
+          </div>
+
+          {/* AI Configuration (LLM endpoint) */}
+          <div className="mb-8">
+            <LlmConfigSection />
           </div>
 
           {/* Manual Crawl (placeholder until the worker is migrated) */}
