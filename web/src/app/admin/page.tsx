@@ -1,7 +1,7 @@
 import { auth, signOut } from "@/auth";
 import { query } from "@/lib/db";
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import { FPTopNav } from "@/components/fp/FPTopNav";
 import { UserManagementSection } from "./components/UserManagementSection";
 import { LlmConfigSection } from "./components/LlmConfigSection";
 
@@ -33,173 +33,249 @@ async function getAdminStats(): Promise<AdminStats> {
   };
 }
 
+// Reusable FP card for admin sections.
+function AdminCard({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`rounded-[18px] p-6 ${className}`}
+      style={{
+        backgroundColor: "var(--color-fp-card)",
+        border: "1px solid var(--color-fp-card-line)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default async function AdminPage() {
   const session = await auth();
-
-  // Admin-only: must be logged in AND have the Admin role (from app_users).
-  // Phase 1: Updated to use new role name "Admin" (capitalized)
   if (!session?.user) redirect("/");
   if (session.user.role !== "Admin") redirect("/pages");
 
   const stats = await getAdminStats();
-
-  // Allowed domains + invites for a read-only view (add/remove comes in the
-  // admin CRUD phase; the tables already exist and the gate reads from them).
   const domains = await query<{ domain: string }>(
     `SELECT domain FROM allowed_domains ORDER BY domain`
   );
-  const invites = await query<{
-    email: string;
-    status: string;
-  }>(`SELECT email, status FROM invites ORDER BY created_at DESC LIMIT 25`);
+  const invites = await query<{ email: string; status: string }>(
+    `SELECT email, status FROM invites ORDER BY created_at DESC LIMIT 25`
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-      <nav className="border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link
-              href="/pages"
-              className="text-2xl font-bold text-white hover:text-orange-400 transition"
-            >
-              Flight Path
-            </Link>
-            <div className="flex items-center space-x-4">
-              <Link
-                href="/pages"
-                className="text-gray-300 hover:text-white transition"
-              >
-                Library
-              </Link>
-              <div className="text-gray-400">Admin</div>
-              <form action={handleSignOut}>
-                <button
-                  type="submit"
-                  className="text-gray-300 hover:text-white transition"
-                >
-                  Sign Out
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen" style={{ backgroundColor: "var(--color-fp-bg)" }}>
+      <FPTopNav
+        email={session.user.email ?? ""}
+        role={session.user.role ?? "Sales"}
+        active="admin"
+        signOutAction={handleSignOut}
+      />
 
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -right-40 w-96 h-96 bg-orange-500/20 rounded-full blur-3xl" />
-        </div>
+      <div className="relative">
+        <div className="grain-overlay" />
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="relative z-10 mx-auto max-w-5xl px-5 py-14 md:py-20">
+          {/* ViewHeader */}
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-white mb-2">Admin Portal</h1>
-            <p className="text-gray-400">
-              Manage your Flight Path content and access settings
+            <div
+              className="font-[var(--font-fp-mono)] text-[10px] tracking-[0.34em] uppercase mb-2"
+              style={{ color: "var(--color-fp-ink-3)" }}
+            >
+              ADMINISTRATION
+            </div>
+            <h1
+              className="font-[var(--font-fp-display)] text-5xl md:text-6xl uppercase leading-[0.92]"
+              style={{ color: "var(--color-fp-ink)" }}
+            >
+              Admin Portal
+            </h1>
+            <p
+              className="font-[var(--font-fp-mono)] text-[11px] tracking-[0.06em] mt-2"
+              style={{ color: "var(--color-fp-ink-2)" }}
+            >
+              Manage content, users, and access settings
             </p>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-slate-900/50 border border-white/10 rounded-lg p-6">
-              <div className="text-gray-400 text-sm mb-1">Total Pages</div>
-              <div className="text-3xl font-bold text-white">
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+            <AdminCard>
+              <div
+                className="font-[var(--font-fp-mono)] text-[10px] tracking-[0.2em] uppercase mb-2"
+                style={{ color: "var(--color-fp-ink-3)" }}
+              >
+                Total Pages
+              </div>
+              <div
+                className="font-[var(--font-fp-display)] text-4xl"
+                style={{ color: "var(--color-fp-ink)" }}
+              >
                 {stats.totalPages}
               </div>
-            </div>
-            <div className="bg-slate-900/50 border border-white/10 rounded-lg p-6">
-              <div className="text-gray-400 text-sm mb-1">Hidden Pages</div>
-              <div className="text-3xl font-bold text-orange-400">
+            </AdminCard>
+            <AdminCard>
+              <div
+                className="font-[var(--font-fp-mono)] text-[10px] tracking-[0.2em] uppercase mb-2"
+                style={{ color: "var(--color-fp-ink-3)" }}
+              >
+                Hidden Pages
+              </div>
+              <div
+                className="font-[var(--font-fp-display)] text-4xl"
+                style={{ color: "var(--color-fp-accent)" }}
+              >
                 {stats.hiddenPages}
               </div>
-            </div>
-            <div className="bg-slate-900/50 border border-white/10 rounded-lg p-6">
-              <div className="text-gray-400 text-sm mb-1">Last Sync</div>
-              <div className="text-lg font-semibold text-white">
+            </AdminCard>
+            <AdminCard>
+              <div
+                className="font-[var(--font-fp-mono)] text-[10px] tracking-[0.2em] uppercase mb-2"
+                style={{ color: "var(--color-fp-ink-3)" }}
+              >
+                Last Sync
+              </div>
+              <div
+                className="font-[var(--font-fp-sans)] text-[14px] font-semibold"
+                style={{ color: "var(--color-fp-ink)" }}
+              >
                 {stats.lastSync
-                  ? new Date(stats.lastSync).toLocaleString()
+                  ? new Date(stats.lastSync).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })
                   : "Never"}
               </div>
-            </div>
+            </AdminCard>
           </div>
 
-          {/* Phase 1: User Management */}
-          <div className="mb-8">
+          {/* User Management */}
+          <div className="mb-6">
             <UserManagementSection />
           </div>
 
-          {/* AI Configuration (LLM endpoint) */}
-          <div className="mb-8">
+          {/* AI Configuration */}
+          <div className="mb-6">
             <LlmConfigSection />
           </div>
 
-          {/* Manual Crawl (placeholder until the worker is migrated) */}
-          <div className="bg-slate-900/50 border border-white/10 rounded-lg p-6 mb-8">
-            <h2 className="text-xl font-semibold text-white mb-2">
-              Notion Sync
-            </h2>
-            <p className="text-gray-400 text-sm">
-              {/* TODO: wire this button to the node-worker once it writes to the
-                  local Postgres database. For now it is informational only. */}
-              The Notion crawler (node-worker) writes crawled pages here. After
-              the worker is migrated to this database, this button will trigger
-              a fresh sync.
-            </p>
-            <button
-              type="button"
-              disabled
-              className="mt-4 bg-slate-700 text-gray-400 px-6 py-2 rounded-lg cursor-not-allowed"
-            >
-              Sync Now (coming soon)
-            </button>
+          {/* Notion Sync */}
+          <div className="mb-6">
+            <AdminCard>
+              <h2
+                className="font-[var(--font-fp-sans)] text-[16px] font-bold mb-2"
+                style={{ color: "var(--color-fp-ink)" }}
+              >
+                Notion Sync
+              </h2>
+              <p
+                className="font-[var(--font-fp-sans)] text-[13px] leading-relaxed mb-4"
+                style={{ color: "var(--color-fp-ink-3)" }}
+              >
+                {/* TODO: wire this button to the node-worker. */}
+                The Notion crawler (node-worker) writes crawled pages here. Run
+                it from the terminal: <code className="font-mono">cd node-worker && npm start</code>
+              </p>
+              <button
+                type="button"
+                disabled
+                className="rounded-[14px] px-5 py-2.5 font-[var(--font-fp-mono)] text-[11px] font-bold tracking-[0.1em] uppercase cursor-not-allowed"
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  border: "1px solid var(--color-fp-line)",
+                  color: "var(--color-fp-ink-3)",
+                }}
+              >
+                Sync Now (coming soon)
+              </button>
+            </AdminCard>
           </div>
 
           {/* Allowed Domains */}
-          <div className="bg-slate-900/50 border border-white/10 rounded-lg p-6 mb-8">
-            <h2 className="text-xl font-semibold text-white mb-4">
-              Allowed Domains
-            </h2>
-            {domains.rows.length === 0 ? (
-              <div className="text-gray-400 text-sm">No domains configured.</div>
-            ) : (
-              <ul className="space-y-2">
-                {domains.rows.map((d) => (
-                  <li
-                    key={d.domain}
-                    className="bg-slate-800/50 border border-white/5 rounded-lg px-4 py-2 text-gray-300 font-mono text-sm"
-                  >
-                    {d.domain}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {/* TODO: add/remove domains via /api/admin/domains in a later phase. */}
+          <div className="mb-6">
+            <AdminCard>
+              <h2
+                className="font-[var(--font-fp-sans)] text-[16px] font-bold mb-4"
+                style={{ color: "var(--color-fp-ink)" }}
+              >
+                Allowed Domains
+              </h2>
+              {domains.rows.length === 0 ? (
+                <div
+                  className="font-[var(--font-fp-mono)] text-[11px]"
+                  style={{ color: "var(--color-fp-ink-3)" }}
+                >
+                  No domains configured.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {domains.rows.map((d) => (
+                    <div
+                      key={d.domain}
+                      className="rounded-[10px] px-4 py-2.5 font-mono text-[13px]"
+                      style={{
+                        backgroundColor: "rgba(255,255,255,0.03)",
+                        border: "1px solid var(--color-fp-line)",
+                        color: "var(--color-fp-ink-2)",
+                      }}
+                    >
+                      {d.domain}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </AdminCard>
           </div>
 
           {/* Invites */}
-          <div className="bg-slate-900/50 border border-white/10 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-white mb-4">Invites</h2>
+          <AdminCard>
+            <h2
+              className="font-[var(--font-fp-sans)] text-[16px] font-bold mb-4"
+              style={{ color: "var(--color-fp-ink)" }}
+            >
+              Invites
+            </h2>
             {invites.rows.length === 0 ? (
-              <div className="text-gray-400 text-sm">
-                No invites yet. Add jrizzo@sunritesolarllc.com (or others) to the
-                invites table to let them sign in while invite-required is on.
+              <div
+                className="font-[var(--font-fp-mono)] text-[11px]"
+                style={{ color: "var(--color-fp-ink-3)" }}
+              >
+                No invites yet.
               </div>
             ) : (
               <div className="space-y-2">
                 {invites.rows.map((i) => (
                   <div
                     key={i.email}
-                    className="flex items-center justify-between bg-slate-800/50 border border-white/5 rounded-lg px-4 py-2"
+                    className="flex items-center justify-between rounded-[10px] px-4 py-2.5"
+                    style={{
+                      backgroundColor: "rgba(255,255,255,0.03)",
+                      border: "1px solid var(--color-fp-line)",
+                    }}
                   >
-                    <span className="text-gray-300 text-sm font-mono">
+                    <span
+                      className="font-mono text-[13px]"
+                      style={{ color: "var(--color-fp-ink-2)" }}
+                    >
                       {i.email}
                     </span>
-                    <span className="text-xs text-gray-500">{i.status}</span>
+                    <span
+                      className="font-[var(--font-fp-mono)] text-[10px] tracking-[0.1em] uppercase"
+                      style={{ color: "var(--color-fp-ink-3)" }}
+                    >
+                      {i.status}
+                    </span>
                   </div>
                 ))}
               </div>
             )}
-            {/* TODO: add/remove invites via /api/admin/invites in a later phase. */}
-          </div>
+          </AdminCard>
         </div>
       </div>
     </div>
