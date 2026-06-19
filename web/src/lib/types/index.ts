@@ -92,3 +92,52 @@ export type Block =
   | { type: "page_link"; pageId: string; title: string; slug?: string }
   | { type: "file"; url: string; name?: string; caption?: string }
   | { type: "divider" };
+
+// ─────────────────────────────────────────────────────────────────────────
+// Profile + chat types (spec section 6: data shapes).
+// Used by /api/me, /api/profile, /api/chat/*, and the iOS client mirror.
+// ─────────────────────────────────────────────────────────────────────────
+
+export type UserProfile = {
+  id: string;
+  email: string;
+  fullName: string;
+  avatarUrl: string | null;
+  phone: string | null;
+  town: string | null;
+  hireDate: string | null; // ISO date YYYY-MM-DD
+  role: UserRole;
+  status: UserStatus;
+};
+
+/** All-optional shape for PATCH /api/profile. */
+export type UserProfilePatch = {
+  fullName?: string;
+  avatarUrl?: string | null;
+  phone?: string | null;
+  town?: string | null;
+  hireDate?: string | null;
+};
+
+export type ChatSource = {
+  pageId: string;
+  title: string;
+  slug: string;
+  snippet: string;
+};
+
+export type ChatMessageRecord = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  sources: ChatSource[] | null;
+  createdAt: string; // ISO
+};
+
+export type ChatThread = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: ChatMessageRecord[];
+};
