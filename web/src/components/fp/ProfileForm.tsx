@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { signOut } from "next-auth";
+import { signOut } from "@/auth";
 
 type UserProfile = {
   id: string;
@@ -116,7 +116,7 @@ export default function ProfileForm() {
           {saving ? "Saving…" : "Save"}
         </button>
         <button
-          onClick={() => signOut({ callbackUrl: "/" })}
+          onClick={() => signOut({ redirectTo: "/" })}
           className="font-[var(--font-fp-mono)] text-xs uppercase tracking-[0.2em] hover:opacity-80"
           style={{ color: "var(--color-fp-ink-3)" }}
         >
