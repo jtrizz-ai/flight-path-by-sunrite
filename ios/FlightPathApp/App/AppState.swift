@@ -26,68 +26,139 @@ final class AppState: ObservableObject {
     let appointmentsGoal = 5
 
     // Chat
-    @Published var messages: [ChatMessage] = ChatMessage.samples
+    @Published var messages: [ChatMessage] = []
+    @Published var isTyping = false
 
-    // Auth
-    // TODO: Change back to false before shipping — dev bypass so the full shell is always visible
-    @Published var isAuthenticated = true
+    // Auth + profile
+    @Published var isAuthenticated = false   // NO MORE DEV BYPASS
     @Published var isSigningIn = false
+    @Published var user: UserProfile?
+    @Published var signInError: String?
 
-    // Profile (static for this build — wired to backend later)
-    let userName = "Jonathan Rizzo"
-    let userEmail = "jrizzo@sunritesolarllc.com"
     var userInitials: String {
-        userName.split(separator: " ").compactMap { $0.first }.prefix(2).map(String.init).joined()
+        let name = user?.fullName ?? ""
+        return name.split(separator: " ")
+            .compactMap { $0.first }
+            .prefix(2)
+            .map(String.init)
+            .joined()
+            .uppercased()
     }
+    /// Used by AppHeader + SideDrawer before user profile loads.
+    var displayUserName: String { user?.fullName ?? "—" }
+    var displayUserEmail: String { user?.email ?? "" }
+
+    private let api = APIClient.shared
+
+    // ── Auth ────────────────────────────────────────────────────────────
 
     func signInWithGoogle() async {
         isSigningIn = true
+        signInError = nil
         defer { isSigningIn = false }
 
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootVC = windowScene.windows.first(where: \.isKeyWindow)?.rootViewController
-        else { return }
+        else {
+            signInError = "Could not find the sign-in window."
+            return
+        }
 
         do {
             let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootVC)
-            // result.user.profile holds name/email/photo when needed
-            _ = result.user
+            guard let idToken = result.user.idToken?.tokenString else {
+                signInError = "Google did not return an ID token."
+                return
+            }
+            let exchange = try await api.exchangeToken(googleIdToken: idToken)
+            KeychainStore.save(token: exchange.token)
+            user = exchange.user
             isAuthenticated = true
+            await loadChatHistory()
+        } catch let APIError.http(403, _) {
+            signInError = "Your email isn't on the allowlist."
+        } catch let APIError.http(401, _) {
+            signInError = "Google sign-in could not be verified."
+        } catch let APIError.network(_) {
+            signInError = "Could not reach the backend. Check Settings → Backend URL."
         } catch {
-            // User cancelled or auth error — stay on login screen
+            // User-cancelled Google sign-in lands here silently — don't surface as error.
         }
     }
 
     func restorePreviousSignIn() async {
+        // Only restore if we have a backend token AND Google can restore prior sign-in.
+        guard KeychainStore.loadToken() != nil,
+              GIDSignIn.sharedInstance.hasPreviousSignIn() else { return }
         do {
             try await GIDSignIn.sharedInstance.restorePreviousSignIn()
-            isAuthenticated = true
+            user = try? await api.fetchMe()
+            if user != nil {
+                isAuthenticated = true
+                await loadChatHistory()
+            } else {
+                KeychainStore.clear()
+            }
         } catch {
-            // No cached session; user will sign in manually
+            KeychainStore.clear()
         }
     }
 
-    func signOut() {
+    func signOut() async {
+        await api.signOut()
         GIDSignIn.sharedInstance.signOut()
+        user = nil
         isAuthenticated = false
+        messages = []
     }
 
-    func select(_ newTab: AppTab) {
-        withAnimation(.easeInOut(duration: 0.22)) {
-            tab = newTab
+    // ── Chat ────────────────────────────────────────────────────────────
+
+    func loadChatHistory() async {
+        do {
+            let thread = try await api.fetchChatThread()
+            messages = thread.messages.map { m in
+                ChatMessage(
+                    id: UUID(uuidString: m.id) ?? UUID(),
+                    role: m.role == "user" ? .me : .ai,
+                    text: m.content,
+                    sources: m.sources
+                )
+            }
+        } catch {
+            // Leave messages empty on failure; user can still send new ones.
         }
     }
 
     func send(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        messages.append(ChatMessage(role: .me, text: trimmed))
-        // Placeholder assistant reply (live app answers from Flight Path content).
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.messages.append(ChatMessage(
-                role: .ai,
-                text: "Thanks! This is a preview of the Flight Path assistant. In the live app it answers from your Flight Path Program content."
-            ))
+        messages.append(ChatMessage(id: UUID(), role: .me, text: trimmed, sources: nil))
+        isTyping = true
+        Task {
+            do {
+                let resp = try await api.sendChat(message: trimmed)
+                messages.append(ChatMessage(
+                    id: UUID(),
+                    role: .ai,
+                    text: resp.answer,
+                    sources: resp.sources
+                ))
+            } catch {
+                messages.append(ChatMessage(
+                    id: UUID(),
+                    role: .ai,
+                    text: "Sorry — I couldn't reach the Flight Path assistant. Try again in a moment.",
+                    sources: nil
+                ))
+            }
+            isTyping = false
+        }
+    }
+
+    func select(_ newTab: AppTab) {
+        withAnimation(.easeInOut(duration: 0.22)) {
+            tab = newTab
         }
     }
 }

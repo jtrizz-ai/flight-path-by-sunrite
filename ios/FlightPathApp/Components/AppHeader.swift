@@ -37,7 +37,7 @@ struct AppHeader: View {
                     .tracking(0.4)
                     .foregroundColor(.ink2)
                     .lineLimit(1)
-                Text(app.userName)
+                Text(app.displayUserName)
                     .font(FPFont.mono(11, .bold))
                     .tracking(0.2)
                     .foregroundColor(.ink)

@@ -4,6 +4,8 @@ import SwiftUI
 
 struct SideDrawer: View {
     @EnvironmentObject var app: AppState
+    @State private var showProfile = false
+    @State private var showSettings = false
 
     private struct Link: Identifiable {
         let id = UUID()
@@ -51,6 +53,8 @@ struct SideDrawer: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.spring(response: 0.34, dampingFraction: 0.86), value: app.drawerOpen)
         .allowsHitTesting(app.drawerOpen)
+        .sheet(isPresented: $showProfile) { ProfileView(app: app) }
+        .sheet(isPresented: $showSettings) { SettingsView(app: app) }
     }
 
     private var panel: some View {
@@ -69,10 +73,10 @@ struct SideDrawer: View {
                     )
                     .clipShape(Circle())
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(app.userName)
+                    Text(app.displayUserName)
                         .font(FPFont.sans(15, .bold))
                         .foregroundColor(.ink)
-                    Text(app.userEmail)
+                    Text(app.displayUserEmail)
                         .font(FPFont.mono(10))
                         .foregroundColor(.ink3)
                 }
@@ -115,8 +119,15 @@ struct SideDrawer: View {
 
     private func row(_ link: Link) -> some View {
         Button {
-            if let tab = link.tab { app.select(tab) }
-            close()
+            switch link.title {
+            case "Profile":
+                showProfile = true
+            case "Settings":
+                showSettings = true
+            default:
+                if let tab = link.tab { app.select(tab) }
+                close()
+            }
         } label: {
             HStack(spacing: 13) {
                 Group {

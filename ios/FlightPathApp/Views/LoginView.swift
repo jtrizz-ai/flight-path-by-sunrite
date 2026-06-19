@@ -64,6 +64,16 @@ struct LoginView: View {
                         GoogleSignInButton {
                             Task { await app.signInWithGoogle() }
                         }
+                        .disabled(app.isSigningIn)
+
+                        if let err = app.signInError {
+                            Text(err)
+                                .font(FPFont.mono(10))
+                                .tracking(1.2)
+                                .foregroundColor(.fpAccent)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 16)
+                        }
                     }
                     .padding(.bottom, 52)
                 }
