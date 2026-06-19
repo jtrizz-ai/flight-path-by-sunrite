@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-export default function LlmConfigSection() {
+export function LlmConfigSection() {
   const [baseUrl, setBaseUrl] = useState("");
   const [model, setModel] = useState("");
   const [apiKey, setApiKey] = useState("");
