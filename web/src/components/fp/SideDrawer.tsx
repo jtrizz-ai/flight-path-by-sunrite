@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { BrandMark } from './BrandMark';
 import type { TabId } from './TabBar';
 
@@ -99,25 +100,42 @@ export function SideDrawer({
 
         {/* Extra links */}
         <div className="flex flex-col gap-0.5">
-          {extraLinks.map((link) => (
-            <button
-              key={link.title}
-              className="flex items-center gap-3 px-2.5 py-3 rounded-xl transition-colors"
-              style={{ color: 'var(--color-fp-ink-2)' }}
-            >
-              {link.useBrand ? (
-                <BrandMark size={19} className="text-[var(--color-fp-ink-3)]" />
-              ) : link.icon ? (
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--color-fp-ink-3)' }}>
-                  <path d={link.icon} />
-                  {link.title === 'Settings' && (
-                    <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H7a1.6 1.6 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V7a1.6 1.6 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" />
-                  )}
-                </svg>
-              ) : null}
-              <span className="font-semibold text-[14px]">{link.title}</span>
-            </button>
-          ))}
+          {extraLinks.map((link) => {
+            const inner = (
+              <>
+                {link.useBrand ? (
+                  <BrandMark size={19} className="text-[var(--color-fp-ink-3)]" />
+                ) : link.icon ? (
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--color-fp-ink-3)' }}>
+                    <path d={link.icon} />
+                    {link.title === 'Settings' && (
+                      <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H7a1.6 1.6 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V7a1.6 1.6 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" />
+                    )}
+                  </svg>
+                ) : null}
+                <span className="font-semibold text-[14px]">{link.title}</span>
+              </>
+            );
+
+            const cls =
+              'flex items-center gap-3 px-2.5 py-3 rounded-xl transition-colors';
+            const style = { color: 'var(--color-fp-ink-2)' };
+
+            // Profile is a real Next.js route; render as Link so it navigates.
+            if (link.title === 'Profile') {
+              return (
+                <Link key={link.title} href="/profile" onClick={onClose} className={cls} style={style}>
+                  {inner}
+                </Link>
+              );
+            }
+
+            return (
+              <button key={link.title} className={cls} style={style}>
+                {inner}
+              </button>
+            );
+          })}
         </div>
 
         {/* Footer */}
