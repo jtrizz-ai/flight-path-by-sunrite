@@ -9,7 +9,21 @@ import { ScheduleView } from './ScheduleView';
 import { TallyView } from './TallyView';
 import { ChatView, type ChatMessage, type ChatSource } from './ChatView';
 
-export function FlightPathApp({ userName, userEmail }: { userName: string; userEmail: string }) {
+export type ContentPageSummary = {
+  slug: string;
+  title: string;
+  icon: string | null;
+};
+
+export function FlightPathApp({
+  userName,
+  userEmail,
+  pages,
+}: {
+  userName: string;
+  userEmail: string;
+  pages: ContentPageSummary[];
+}) {
   const [currentTab, setCurrentTab] = useState<'home' | TabId>('home');
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -126,7 +140,7 @@ export function FlightPathApp({ userName, userEmail }: { userName: string; userE
       {/* Active view */}
       <div className="flex-1 relative overflow-hidden">
         {currentTab === 'home' && <HomeView userName={userName} />}
-        {currentTab === 'schedule' && <ScheduleView />}
+        {currentTab === 'schedule' && <ScheduleView pages={pages} />}
         {currentTab === 'tally' && (
           <TallyView
             doors={doors}

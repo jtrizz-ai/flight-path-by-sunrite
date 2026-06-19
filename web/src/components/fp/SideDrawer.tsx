@@ -121,10 +121,17 @@ export function SideDrawer({
               'flex items-center gap-3 px-2.5 py-3 rounded-xl transition-colors';
             const style = { color: 'var(--color-fp-ink-2)' };
 
-            // Profile is a real Next.js route; render as Link so it navigates.
+            // Profile and Flight Path Program are real Next.js routes; render as Link.
             if (link.title === 'Profile') {
               return (
                 <Link key={link.title} href="/profile" onClick={onClose} className={cls} style={style}>
+                  {inner}
+                </Link>
+              );
+            }
+            if (link.title === 'Flight Path Program') {
+              return (
+                <Link key={link.title} href="/pages" onClick={onClose} className={cls} style={style}>
                   {inner}
                 </Link>
               );
