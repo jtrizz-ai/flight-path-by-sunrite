@@ -108,10 +108,15 @@ private struct ChatBubble: View {
                     .font(FPFont.mono(9))
                     .tracking(1.6)
                     .foregroundColor(isMe ? Color.white.opacity(0.7) : .ink3)
-                Text(message.text)
-                    .font(FPFont.sans(13.5))
-                    .foregroundColor(isMe ? .white : .ink)
-                    .fixedSize(horizontal: false, vertical: true)
+                if isMe {
+                    Text(message.text)
+                        .font(FPFont.sans(13.5))
+                        .foregroundColor(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    MarkdownText(message.text, baseFont: FPFont.sans(13.5))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if let sources = message.sources, !sources.isEmpty, !isMe {
                     VStack(spacing: 6) {
                         ForEach(sources) { src in

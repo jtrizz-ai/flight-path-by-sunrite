@@ -30,7 +30,7 @@ export async function callLlm(
         model: cfg.model,
         messages,
         temperature: opts.temperature ?? 0.3,
-        max_tokens: opts.maxTokens ?? 800,
+        max_tokens: opts.maxTokens ?? 4096,
       }),
     });
     if (!res.ok) {

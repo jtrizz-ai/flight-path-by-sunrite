@@ -56,7 +56,7 @@ struct HomeView: View {
 
                     Spacer()
 
-                    Text("Welcome back, \(app.userName) — ready for departure")
+                    Text("Welcome back, \(app.displayUserName) — ready for departure")
                         .font(FPFont.mono(11))
                         .tracking(1.4)
                         .foregroundColor(.ink2)

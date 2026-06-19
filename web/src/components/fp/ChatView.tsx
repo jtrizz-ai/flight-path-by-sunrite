@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from 'react';
 import SourceCard from './SourceCard';
 import TypingIndicator from './TypingIndicator';
+import { MarkdownResponse } from './MarkdownResponse';
 
 export type ChatSource = { pageId: string; title: string; slug: string; snippet: string };
 
@@ -122,10 +123,14 @@ function ChatBubble({ message }: { message: ChatMessage }) {
             {who}
           </div>
           <div
-            className="font-[var(--font-fp-sans)] text-[13.5px] leading-relaxed whitespace-pre-wrap"
+            className="font-[var(--font-fp-sans)] text-[13.5px] leading-relaxed"
             style={{ color: isMe ? '#fff' : 'var(--color-fp-ink)' }}
           >
-            {message.text}
+            {isMe ? (
+              <span className="whitespace-pre-wrap">{message.text}</span>
+            ) : (
+              <MarkdownResponse>{message.text}</MarkdownResponse>
+            )}
           </div>
         </div>
       </div>
