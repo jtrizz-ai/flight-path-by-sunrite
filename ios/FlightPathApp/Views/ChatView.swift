@@ -20,6 +20,10 @@ struct ChatView: View {
                                 ChatBubble(message: message)
                                     .id(message.id)
                             }
+                            if app.isTyping {
+                                TypingIndicator()
+                                    .id("typing")
+                            }
                         }
                         .padding(20)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -28,6 +32,13 @@ struct ChatView: View {
                         if let last = app.messages.last {
                             withAnimation(.easeOut(duration: 0.25)) {
                                 proxy.scrollTo(last.id, anchor: .bottom)
+                            }
+                        }
+                    }
+                    .onChange(of: app.isTyping) { _, isTyping in
+                        if isTyping {
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                proxy.scrollTo("typing", anchor: .bottom)
                             }
                         }
                     }
@@ -55,10 +66,11 @@ struct ChatView: View {
                             .font(.system(size: 17, weight: .medium))
                             .foregroundColor(.white)
                             .frame(width: 44, height: 44)
-                            .background(Color.fpAccent)
+                            .background(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || app.isTyping ? Color.fpAccent.opacity(0.4) : Color.fpAccent)
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
+                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || app.isTyping)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
@@ -100,6 +112,14 @@ private struct ChatBubble: View {
                     .font(FPFont.sans(13.5))
                     .foregroundColor(isMe ? .white : .ink)
                     .fixedSize(horizontal: false, vertical: true)
+                if let sources = message.sources, !sources.isEmpty, !isMe {
+                    VStack(spacing: 6) {
+                        ForEach(sources) { src in
+                            SourceCitationCard(source: src)
+                        }
+                    }
+                    .padding(.top, 4)
+                }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
