@@ -1,19 +1,26 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
+import SourceCard from './SourceCard';
+import TypingIndicator from './TypingIndicator';
+
+export type ChatSource = { pageId: string; title: string; slug: string; snippet: string };
 
 export type ChatMessage = {
   id: string;
   role: 'ai' | 'me';
   text: string;
+  sources?: ChatSource[];
 };
 
 export function ChatView({
   messages,
   onSend,
+  isTyping = false,
 }: {
   messages: ChatMessage[];
   onSend: (text: string) => void;
+  isTyping?: boolean;
 }) {
   const [draft, setDraft] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -22,7 +29,7 @@ export function ChatView({
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isTyping]);
 
   const handleSend = () => {
     const text = draft.trim();
@@ -39,6 +46,7 @@ export function ChatView({
           {messages.map((msg) => (
             <ChatBubble key={msg.id} message={msg} />
           ))}
+          {isTyping && <TypingIndicator />}
         </div>
       </div>
 
@@ -95,30 +103,39 @@ function ChatBubble({ message }: { message: ChatMessage }) {
   const who = isMe ? 'You' : 'Flight Path AI';
 
   return (
-    <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className="max-w-[80%] px-3.5 py-2.5"
-        style={{
-          backgroundColor: isMe ? 'var(--color-fp-accent)' : 'var(--color-fp-card)',
-          border: isMe ? 'none' : '1px solid var(--color-fp-card-line)',
-          borderRadius: '16px',
-          borderBottomLeftRadius: isMe ? '16px' : '5px',
-          borderBottomRightRadius: isMe ? '5px' : '16px',
-        }}
-      >
+    <div className={`flex flex-col gap-1.5 ${isMe ? 'items-end' : 'items-start'}`}>
+      <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} w-full`}>
         <div
-          className="font-[var(--font-fp-mono)] text-[9px] tracking-[0.16em] uppercase mb-1"
-          style={{ color: isMe ? 'rgba(255,255,255,0.7)' : 'var(--color-fp-ink-3)' }}
+          className="max-w-[80%] px-3.5 py-2.5"
+          style={{
+            backgroundColor: isMe ? 'var(--color-fp-accent)' : 'var(--color-fp-card)',
+            border: isMe ? 'none' : '1px solid var(--color-fp-card-line)',
+            borderRadius: '16px',
+            borderBottomLeftRadius: isMe ? '16px' : '5px',
+            borderBottomRightRadius: isMe ? '5px' : '16px',
+          }}
         >
-          {who}
-        </div>
-        <div
-          className="font-[var(--font-fp-sans)] text-[13.5px] leading-relaxed"
-          style={{ color: isMe ? '#fff' : 'var(--color-fp-ink)' }}
-        >
-          {message.text}
+          <div
+            className="font-[var(--font-fp-mono)] text-[9px] tracking-[0.16em] uppercase mb-1"
+            style={{ color: isMe ? 'rgba(255,255,255,0.7)' : 'var(--color-fp-ink-3)' }}
+          >
+            {who}
+          </div>
+          <div
+            className="font-[var(--font-fp-sans)] text-[13.5px] leading-relaxed whitespace-pre-wrap"
+            style={{ color: isMe ? '#fff' : 'var(--color-fp-ink)' }}
+          >
+            {message.text}
+          </div>
         </div>
       </div>
+      {!isMe && message.sources && message.sources.length > 0 && (
+        <div className="max-w-[80%] w-full flex flex-col gap-1.5">
+          {message.sources.map((s) => (
+            <SourceCard key={s.pageId} source={s} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
