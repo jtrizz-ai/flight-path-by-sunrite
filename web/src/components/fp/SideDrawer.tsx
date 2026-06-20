@@ -8,6 +8,7 @@ export function SideDrawer({
   isOpen,
   userName,
   userEmail,
+  userRole,
   userInitials,
   onClose,
   onNavigate,
@@ -15,6 +16,7 @@ export function SideDrawer({
   isOpen: boolean;
   userName: string;
   userEmail: string;
+  userRole: string;
   userInitials: string;
   onClose: () => void;
   onNavigate: (tab: 'home' | TabId) => void;
@@ -33,6 +35,11 @@ export function SideDrawer({
     { title: 'Profile', icon: 'M4 21c0-4 4-6 8-6s8 2 8 6' },
     { title: 'Settings', icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z' },
   ];
+
+  // Admins get an extra Admin Portal link
+  if (userRole === 'Admin') {
+    extraLinks.unshift({ title: 'Admin Portal', icon: 'M12 2L2 7v10l10 5 10-5V7L12 2zM12 22V12M2 7l10 5 10-5' });
+  }
 
   return (
     <>
@@ -121,10 +128,17 @@ export function SideDrawer({
               'flex items-center gap-3 px-2.5 py-3 rounded-xl transition-colors';
             const style = { color: 'var(--color-fp-ink-2)' };
 
-            // Profile and Flight Path Program are real Next.js routes; render as Link.
+            // Profile, Admin Portal, and Flight Path Program are real Next.js routes.
             if (link.title === 'Profile') {
               return (
                 <Link key={link.title} href="/profile" onClick={onClose} className={cls} style={style}>
+                  {inner}
+                </Link>
+              );
+            }
+            if (link.title === 'Admin Portal') {
+              return (
+                <Link key={link.title} href="/admin" onClick={onClose} className={cls} style={style}>
                   {inner}
                 </Link>
               );

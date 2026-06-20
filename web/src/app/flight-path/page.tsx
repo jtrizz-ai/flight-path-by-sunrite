@@ -12,6 +12,7 @@ export default async function FlightPathPage() {
 
   const userName = session.user.name || "User";
   const userEmail = session.user.email || "";
+  const userRole = session.user.role || "Sales";
 
   // Fetch visible Notion pages for the Schedule/Library view.
   const { rows: pageRows } = await query<{
@@ -25,5 +26,12 @@ export default async function FlightPathPage() {
      ORDER BY title ASC`
   );
 
-  return <FlightPathApp userName={userName} userEmail={userEmail} pages={pageRows} />;
+  return (
+    <FlightPathApp
+      userName={userName}
+      userEmail={userEmail}
+      userRole={userRole}
+      pages={pageRows}
+    />
+  );
 }

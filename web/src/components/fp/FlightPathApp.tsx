@@ -18,10 +18,12 @@ export type ContentPageSummary = {
 export function FlightPathApp({
   userName,
   userEmail,
+  userRole,
   pages,
 }: {
   userName: string;
   userEmail: string;
+  userRole: string;
   pages: ContentPageSummary[];
 }) {
   const [currentTab, setCurrentTab] = useState<'home' | TabId>('home');
@@ -168,6 +170,7 @@ export function FlightPathApp({
           isOpen={drawerOpen}
           userName={userName}
           userEmail={userEmail}
+          userRole={userRole}
           userInitials={userInitials}
           onClose={() => setDrawerOpen(false)}
           onNavigate={handleNavigate}
