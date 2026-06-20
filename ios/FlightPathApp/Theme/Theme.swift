@@ -25,6 +25,10 @@ extension Color {
     static let cardLine   = Color.white.opacity(0.10)
     /// runway / launch light glow color
     static let runwayLight = Color(hex: "FFCB9C")
+    /// --success #36C26E
+    static let fpSuccess    = Color(hex: "36C26E")
+    /// --success-dim white 25% (incomplete dot fill)
+    static let fpSuccessDim = Color.white.opacity(0.25)
 }
 
 // MARK: - Radius tokens

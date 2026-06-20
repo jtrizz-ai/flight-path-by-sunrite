@@ -23,6 +23,15 @@ private struct ExchangeRequest: Encodable { let googleIdToken: String }
 private struct ChatRequestBody: Encodable { let message: String }
 private struct TallyRequestBody: Encodable { let metric: String; let amount: Int }
 private struct PageViewBody: Encodable { let path: String; let title: String? }
+private struct MilestoneCheckBody: Encodable {
+    let milestoneId: String
+    let selfChecked: Bool
+    enum CodingKeys: String, CodingKey {
+        case milestoneId = "milestone_id"
+        case selfChecked = "self_checked"
+    }
+}
+private struct FortyDayPlanBody: Encodable { let plan: FortyDayPlan }
 
 @MainActor
 final class APIClient {
@@ -145,6 +154,31 @@ final class APIClient {
     func fetchBadges() async throws -> [EarnedBadge] {
         let resp: BadgesResponse = try await request(path: "/api/me/badges")
         return resp.badges
+    }
+
+    // ── Onboarding / Schedule ──────────────────────────────────────────
+
+    func fetchOnboardingProgress() async throws -> OnboardingProgress {
+        let resp: OnboardingProgressResponse = try await request(path: "/api/schedule/progress")
+        return resp.progress
+    }
+
+    func updateMilestone(id: String, selfChecked: Bool) async throws -> OnboardingProgress {
+        let resp: OnboardingProgressResponse = try await request(
+            path: "/api/schedule/milestone",
+            method: "POST",
+            body: MilestoneCheckBody(milestoneId: id, selfChecked: selfChecked)
+        )
+        return resp.progress
+    }
+
+    func updateFortyDayPlan(_ plan: FortyDayPlan) async throws -> OnboardingProgress {
+        let resp: OnboardingProgressResponse = try await request(
+            path: "/api/schedule/plan",
+            method: "POST",
+            body: FortyDayPlanBody(plan: plan)
+        )
+        return resp.progress
     }
 
     // ── Activity tracking ──────────────────────────────────────────────

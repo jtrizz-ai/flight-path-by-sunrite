@@ -152,3 +152,71 @@ struct BadgesResponse: Codable {
     let badges: [EarnedBadge]
 }
 struct ThreadResponse: Codable { let thread: ChatThread }
+
+// ── Onboarding / Schedule ──────────────────────────────────────────────
+
+/// Per-milestone completion state, synced with the backend.
+struct MilestoneState: Codable, Equatable {
+    var selfChecked: Bool
+    var confirmedByManager: Bool
+    var revokedByManager: Bool
+    /// Generic sub-progress counter (knock sessions for 03, appts for 04).
+    var sublineValue: Int?
+
+    static let empty = MilestoneState(
+        selfChecked: false,
+        confirmedByManager: false,
+        revokedByManager: false,
+        sublineValue: nil
+    )
+
+    enum CodingKeys: String, CodingKey {
+        case selfChecked        = "self_checked"
+        case confirmedByManager = "confirmed_by_manager"
+        case revokedByManager   = "revoked_by_manager"
+        case sublineValue       = "subline_value"
+    }
+}
+
+/// One day inside the rep's 40-day work plan.
+struct WorkDay: Codable, Identifiable, Equatable {
+    var id: String { date }
+    let date: String        // YYYY-MM-DD
+    var isWorking: Bool
+    var startHour: Int?     // 0–23
+    var endHour: Int?
+    var note: String?
+
+    enum CodingKeys: String, CodingKey {
+        case date
+        case isWorking  = "is_working"
+        case startHour  = "start_hour"
+        case endHour    = "end_hour"
+        case note
+    }
+}
+
+/// The rep's submitted 40-day calendar plan.
+struct FortyDayPlan: Codable, Equatable {
+    var days: [WorkDay]
+    var submitted: Bool
+}
+
+/// Top-level onboarding progress record returned by the backend.
+struct OnboardingProgress: Codable, Equatable {
+    var startDate: String           // YYYY-MM-DD (= hire date)
+    var sitsCompleted: Int
+    var milestones: [String: MilestoneState]
+    var fortyDayPlan: FortyDayPlan?
+
+    enum CodingKeys: String, CodingKey {
+        case startDate      = "start_date"
+        case sitsCompleted  = "sits_completed"
+        case milestones
+        case fortyDayPlan   = "forty_day_plan"
+    }
+}
+
+struct OnboardingProgressResponse: Codable {
+    let progress: OnboardingProgress
+}
