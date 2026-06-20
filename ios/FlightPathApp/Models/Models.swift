@@ -117,4 +117,38 @@ struct ApiError: Codable {
 
 // Tiny helpers for the wrapper response shapes used by /api/me etc.
 struct MeResponse: Codable { let user: UserProfile }
+
+// ── Tally ──────────────────────────────────────────────────────────────
+struct TallyTotals: Codable, Equatable {
+    var doors: Int = 0
+    var conversations: Int = 0
+    var appointments: Int = 0
+}
+
+struct TallyResponse: Codable {
+    let totals: TallyTotals
+}
+
+// ── Badges ─────────────────────────────────────────────────────────────
+struct EarnedBadge: Codable, Identifiable, Equatable {
+    var id: String { slug + (quarter.map(String.init) ?? "") + (year.map(String.init) ?? "") }
+    let slug: String
+    let name: String
+    let description: String?
+    let isQuarterly: Bool
+    let quarter: Int?
+    let year: Int?
+    let awardedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case slug, name, description
+        case isQuarterly = "is_quarterly"
+        case quarter, year
+        case awardedAt = "awarded_at"
+    }
+}
+
+struct BadgesResponse: Codable {
+    let badges: [EarnedBadge]
+}
 struct ThreadResponse: Codable { let thread: ChatThread }

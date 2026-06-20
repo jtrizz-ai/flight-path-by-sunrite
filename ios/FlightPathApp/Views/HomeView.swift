@@ -56,6 +56,39 @@ struct HomeView: View {
 
                     Spacer()
 
+                    // Badge display
+                    if !app.badges.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(app.badges) { badge in
+                                    VStack(spacing: 2) {
+                                        Text(badge.name)
+                                            .font(FPFont.display(13))
+                                            .tracking(0.02)
+                                            .foregroundColor(.ink)
+                                        if badge.isQuarterly, let q = badge.quarter, let y = badge.year {
+                                            Text("Q\(q) · \(y)")
+                                                .font(FPFont.mono(8))
+                                                .tracking(0.15)
+                                                .foregroundColor(.fpAccent2)
+                                        }
+                                    }
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .fill(Color.fpAccent.opacity(0.08))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 14)
+                                                    .stroke(Color.fpAccent.opacity(0.3), lineWidth: 1)
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                    }
+
                     Text("Welcome back, \(app.displayUserName) — ready for departure")
                         .font(FPFont.mono(11))
                         .tracking(1.4)

@@ -21,6 +21,8 @@ enum APIError: LocalizedError {
 // Typed request bodies (avoids dictionary-as-Encodable hacks).
 private struct ExchangeRequest: Encodable { let googleIdToken: String }
 private struct ChatRequestBody: Encodable { let message: String }
+private struct TallyRequestBody: Encodable { let metric: String; let amount: Int }
+private struct PageViewBody: Encodable { let path: String; let title: String? }
 
 @MainActor
 final class APIClient {
@@ -120,6 +122,47 @@ final class APIClient {
 
     func health() async throws -> HealthResponse {
         try await request(path: "/api/chat/health")
+    }
+
+    // ── Tally ──────────────────────────────────────────────────────────
+
+    func fetchTally() async throws -> TallyTotals {
+        let resp: TallyResponse = try await request(path: "/api/tally")
+        return resp.totals
+    }
+
+    func incrementTally(metric: String, amount: Int) async throws -> TallyTotals {
+        let resp: TallyResponse = try await request(
+            path: "/api/tally",
+            method: "POST",
+            body: TallyRequestBody(metric: metric, amount: amount)
+        )
+        return resp.totals
+    }
+
+    // ── Badges ─────────────────────────────────────────────────────────
+
+    func fetchBadges() async throws -> [EarnedBadge] {
+        let resp: BadgesResponse = try await request(path: "/api/me/badges")
+        return resp.badges
+    }
+
+    // ── Activity tracking ──────────────────────────────────────────────
+
+    func trackAppOpen() {
+        struct Empty: Decodable {}
+        Task { _ = try? await request(path: "/api/track/app-open", method: "POST") as Empty }
+    }
+
+    func trackPageView(path: String, title: String? = nil) {
+        struct Empty: Decodable {}
+        Task {
+            _ = try? await request(
+                path: "/api/track/page-view",
+                method: "POST",
+                body: PageViewBody(path: path, title: title)
+            ) as Empty
+        }
     }
 }
 

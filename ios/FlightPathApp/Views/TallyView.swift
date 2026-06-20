@@ -22,18 +22,21 @@ struct TallyView: View {
 
                     BigTallyCard(
                         label: "Doors Knocked",
-                        value: $app.doors,
-                        goal: app.doorsGoal
+                        value: app.doors,
+                        goal: app.doorsGoal,
+                        onIncrement: { delta in app.incrementTally(metric: "doors", delta: delta) }
                     )
                     .padding(.bottom, 14)
 
                     HStack(spacing: 10) {
                         MiniTallyCard(label: "Conversations",
-                                      value: $app.conversations,
-                                      goal: app.conversationsGoal)
+                                      value: app.conversations,
+                                      goal: app.conversationsGoal,
+                                      onIncrement: { delta in app.incrementTally(metric: "conversations", delta: delta) })
                         MiniTallyCard(label: "Appointments",
-                                      value: $app.appointments,
-                                      goal: app.appointmentsGoal)
+                                      value: app.appointments,
+                                      goal: app.appointmentsGoal,
+                                      onIncrement: { delta in app.incrementTally(metric: "appointments", delta: delta) })
                     }
                 }
                 .padding(.horizontal, 20)
@@ -168,8 +171,9 @@ private struct WeeklyChart: View {
 
 private struct BigTallyCard: View {
     let label: String
-    @Binding var value: Int
+    let value: Int
     let goal: Int
+    let onIncrement: (Int) -> Void
 
     private var progress: CGFloat {
         guard goal > 0 else { return 0 }
@@ -203,8 +207,8 @@ private struct BigTallyCard: View {
                 .padding(.bottom, 16)
 
             HStack(spacing: 10) {
-                CounterButton(title: "−") { if value > 0 { value -= 1 } }
-                CounterButton(title: "+ Knock", primary: true) { value += 1 }
+                CounterButton(title: "−") { if value > 0 { onIncrement(-1) } }
+                CounterButton(title: "+ Knock", primary: true) { onIncrement(1) }
             }
         }
         .padding(22)
@@ -216,8 +220,9 @@ private struct BigTallyCard: View {
 
 private struct MiniTallyCard: View {
     let label: String
-    @Binding var value: Int
+    let value: Int
     let goal: Int
+    let onIncrement: (Int) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -231,8 +236,8 @@ private struct MiniTallyCard: View {
                 .padding(.top, 4)
 
             HStack(spacing: 10) {
-                CounterButton(title: "−") { if value > 0 { value -= 1 } }
-                CounterButton(title: "+", primary: true) { value += 1 }
+                CounterButton(title: "−") { if value > 0 { onIncrement(-1) } }
+                CounterButton(title: "+", primary: true) { onIncrement(1) }
             }
             .padding(.top, 10)
         }

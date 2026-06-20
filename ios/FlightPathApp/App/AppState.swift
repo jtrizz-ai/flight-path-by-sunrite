@@ -15,15 +15,19 @@ final class AppState: ObservableObject {
     @Published var tab: AppTab = .home
     @Published var drawerOpen = false
 
-    // Tally counters
+    // Tally counters (persisted to backend)
     @Published var doors = 0
     @Published var conversations = 0
     @Published var appointments = 0
+    @Published var tallyLoaded = false
 
     // Goals (mirrors the design's data-goal attributes)
     let doorsGoal = 40
     let conversationsGoal = 15
     let appointmentsGoal = 5
+
+    // Badges
+    @Published var badges: [EarnedBadge] = []
 
     // Chat
     @Published var messages: [ChatMessage] = []
@@ -74,7 +78,7 @@ final class AppState: ObservableObject {
             KeychainStore.save(token: exchange.token)
             user = exchange.user
             isAuthenticated = true
-            await loadChatHistory()
+            await onAuthenticated()
         } catch let APIError.http(403, _) {
             signInError = "Your email isn't on the allowlist."
         } catch let APIError.http(401, _) {
@@ -95,7 +99,7 @@ final class AppState: ObservableObject {
             user = try? await api.fetchMe()
             if user != nil {
                 isAuthenticated = true
-                await loadChatHistory()
+                await onAuthenticated()
             } else {
                 KeychainStore.clear()
             }
@@ -110,6 +114,70 @@ final class AppState: ObservableObject {
         user = nil
         isAuthenticated = false
         messages = []
+        badges = []
+        doors = 0
+        conversations = 0
+        appointments = 0
+        tallyLoaded = false
+    }
+
+    // ── Post-authentication bootstrap ──────────────────────────────────
+
+    /// Called after successful sign-in or restore. Loads chat history,
+    /// tally totals, badges, and tracks the app open.
+    private func onAuthenticated() async {
+        await loadChatHistory()
+        await loadTally()
+        await loadBadges()
+        api.trackAppOpen()
+    }
+
+    // ── Tally (persisted) ──────────────────────────────────────────────
+
+    func loadTally() async {
+        do {
+            let totals = try await api.fetchTally()
+            doors = totals.doors
+            conversations = totals.conversations
+            appointments = totals.appointments
+        } catch { /* leave zeros */ }
+        tallyLoaded = true
+    }
+
+    /// Increment a metric and persist to the backend. Optimistic update
+    /// with revert on failure.
+    func incrementTally(metric: String, delta: Int) {
+        switch metric {
+        case "doors":
+            doors = max(0, doors + delta)
+        case "conversations":
+            conversations = max(0, conversations + delta)
+        case "appointments":
+            appointments = max(0, appointments + delta)
+        default: return
+        }
+        let prevDoors = doors, prevConv = conversations, prevAppt = appointments
+        Task {
+            do {
+                let totals = try await api.incrementTally(metric: metric, amount: delta)
+                doors = totals.doors
+                conversations = totals.conversations
+                appointments = totals.appointments
+            } catch {
+                // Revert
+                doors = prevDoors
+                conversations = prevConv
+                appointments = prevAppt
+            }
+        }
+    }
+
+    // ── Badges ─────────────────────────────────────────────────────────
+
+    func loadBadges() async {
+        do {
+            badges = try await api.fetchBadges()
+        } catch { /* leave empty */ }
     }
 
     // ── Chat ────────────────────────────────────────────────────────────
@@ -160,5 +228,6 @@ final class AppState: ObservableObject {
         withAnimation(.easeInOut(duration: 0.22)) {
             tab = newTab
         }
+        api.trackPageView(path: "/flight-path?tab=\(newTab.rawValue)", title: newTab.rawValue)
     }
 }
