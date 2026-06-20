@@ -9,17 +9,21 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Link } from "expo-router";
+
 import { FlightPathBackground } from "@/components/FlightPathBackground";
 import { MonoLabel } from "@/components/Type";
 import { Card } from "@/components/Card";
 import { colors, fonts, spacing, radius } from "@/constants/theme";
 import { getBaseUrl, setBaseUrl, checkHealth, type HealthResult } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 
 export default function SettingsScreen() {
   const [url, setUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [health, setHealth] = useState<HealthResult | null>(null);
+  const { user, signOut } = useAuth();
 
   useEffect(() => {
     getBaseUrl().then((v) => setUrl(v));
@@ -94,11 +98,34 @@ export default function SettingsScreen() {
           </Card>
 
           <Card style={{ marginTop: spacing.md }}>
+            <MonoLabel>Account</MonoLabel>
+            {user ? (
+              <View style={styles.accountRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.accountName}>
+                    {user.fullName || user.email}
+                  </Text>
+                  <Text style={styles.accountEmail}>{user.email}</Text>
+                </View>
+                <Pressable style={styles.signOutBtn} onPress={signOut}>
+                  <Text style={styles.signOutText}>Sign Out</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.accountRow}>
+                <Text style={styles.body}>Not signed in.</Text>
+                <Link href="/login" asChild>
+                  <Pressable style={styles.primaryBtn}>
+                    <Text style={styles.primaryBtnText}>Sign In</Text>
+                  </Pressable>
+                </Link>
+              </View>
+            )}
+          </Card>
+
+          <Card style={{ marginTop: spacing.md }}>
             <MonoLabel>About</MonoLabel>
-            <Text style={styles.body}>Flight Path · v0.1.0 (Phase 1)</Text>
-            <Text style={[styles.body, { marginTop: spacing.xs }]}>
-              Sign-in is added in a later phase.
-            </Text>
+            <Text style={styles.body}>Flight Path · v0.1.0 (Phase 2)</Text>
           </Card>
         </ScrollView>
       </SafeAreaView>
@@ -184,5 +211,37 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sansMedium,
     fontSize: 13,
     marginTop: spacing.sm,
+  },
+  accountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  accountName: {
+    color: colors.ink,
+    fontFamily: fonts.sansSemiBold,
+    fontSize: 14,
+  },
+  accountEmail: {
+    color: colors.ink3,
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  signOutBtn: {
+    borderWidth: 1,
+    borderColor: "rgba(232,71,42,0.4)",
+    backgroundColor: "rgba(232,71,42,0.12)",
+    borderRadius: radius.pill,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  signOutText: {
+    color: colors.accent,
+    fontFamily: fonts.monoBold,
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
 });

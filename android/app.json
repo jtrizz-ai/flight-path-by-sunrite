@@ -36,10 +36,14 @@
           "backgroundColor": "#060607"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "googleWebClientId": "YOUR_GOOGLE_WEB_CLIENT_ID"
     }
   }
 }
