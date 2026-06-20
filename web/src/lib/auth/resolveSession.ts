@@ -40,11 +40,13 @@ async function loadUserProfile(userId: string): Promise<UserProfile | null> {
     avatar_url: string | null;
     phone: string | null;
     town: string | null;
+    region: string | null;
+    team: string | null;
     hire_date: Date | null;
     role: UserRole;
     status: UserStatus;
   }>(
-    `SELECT id, email, full_name, avatar_url, phone, town, hire_date, role, status
+    `SELECT id, email, full_name, avatar_url, phone, town, region, team, hire_date, role, status
        FROM app_users
       WHERE id = $1
       LIMIT 1`,
@@ -59,6 +61,8 @@ async function loadUserProfile(userId: string): Promise<UserProfile | null> {
     avatarUrl: r.avatar_url,
     phone: r.phone,
     town: r.town,
+    region: r.region,
+    team: r.team,
     hireDate: r.hire_date ? r.hire_date.toISOString().slice(0, 10) : null,
     role: r.role,
     status: r.status,

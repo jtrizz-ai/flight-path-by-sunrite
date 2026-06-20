@@ -92,11 +92,13 @@ export async function POST(req: Request) {
     avatar_url: string | null;
     phone: string | null;
     town: string | null;
+    region: string | null;
+    team: string | null;
     hire_date: Date | null;
     role: UserRole;
     status: UserStatus;
   }>(
-    `SELECT id, email, full_name, avatar_url, phone, town, hire_date, role, status
+    `SELECT id, email, full_name, avatar_url, phone, town, region, team, hire_date, role, status
        FROM app_users WHERE lower(email) = $1 LIMIT 1`,
     [email]
   );
@@ -123,6 +125,8 @@ export async function POST(req: Request) {
     avatarUrl: u.avatar_url,
     phone: u.phone,
     town: u.town,
+    region: u.region ?? null,
+    team: u.team ?? null,
     hireDate: u.hire_date ? u.hire_date.toISOString().slice(0, 10) : null,
     role: u.role,
     status: u.status,

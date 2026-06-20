@@ -131,6 +131,8 @@ export type UserProfile = {
   avatarUrl: string | null;
   phone: string | null;
   town: string | null;
+  region: string | null;
+  team: string | null;
   hireDate: string | null; // ISO date YYYY-MM-DD
   role: UserRole;
   status: UserStatus;
