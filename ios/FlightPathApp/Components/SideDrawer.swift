@@ -22,11 +22,16 @@ struct SideDrawer: View {
         .init(title: "Chat",     systemImage: "bubble.left", useBrandMark: false, tab: .chat)
     ]
 
-    private let extraLinks: [Link] = [
-        .init(title: "Flight Path Program", systemImage: nil,                    useBrandMark: true,  tab: nil),
-        .init(title: "Profile",             systemImage: "person.crop.circle",   useBrandMark: false, tab: nil),
-        .init(title: "Settings",            systemImage: "gearshape",            useBrandMark: false, tab: nil)
-    ]
+    private var extraLinks: [Link] {
+        var links: [Link] = []
+        if app.user?.role == "Admin" {
+            links.append(.init(title: "Admin Portal", systemImage: "shield.lefthalf.filled", useBrandMark: false, tab: nil))
+        }
+        links.append(.init(title: "Flight Path Program", systemImage: nil, useBrandMark: true, tab: nil))
+        links.append(.init(title: "Profile", systemImage: "person.crop.circle", useBrandMark: false, tab: nil))
+        links.append(.init(title: "Settings", systemImage: "gearshape", useBrandMark: false, tab: nil))
+        return links
+    }
 
     var body: some View {
         ZStack(alignment: .trailing) {
@@ -124,6 +129,10 @@ struct SideDrawer: View {
                 showProfile = true
             case "Settings":
                 showSettings = true
+            case "Admin Portal":
+                let url = URL(string: AppConfig.backendBaseURL + "/admin")!
+                UIApplication.shared.open(url)
+                close()
             default:
                 if let tab = link.tab { app.select(tab) }
                 close()
