@@ -5,6 +5,7 @@ import { FPTopNav } from "@/components/fp/FPTopNav";
 import { UserManagementSection } from "./components/UserManagementSection";
 import { LlmConfigSection } from "./components/LlmConfigSection";
 import { BadgeManagementSection } from "./components/BadgeManagementSection";
+import { UserStatsSection } from "./components/UserStatsSection";
 
 async function handleSignOut() {
   "use server";
@@ -66,6 +67,17 @@ export default async function AdminPage() {
   );
   const invites = await query<{ email: string; status: string }>(
     `SELECT email, status FROM invites ORDER BY created_at DESC LIMIT 25`
+  );
+  const { rows: users } = await query<{
+    id: string;
+    email: string;
+    full_name: string | null;
+    region: string | null;
+    team: string | null;
+    role: string;
+  }>(
+    `SELECT id, email, full_name, region, team, role
+     FROM app_users ORDER BY full_name, email`
   );
 
   return (
@@ -164,6 +176,16 @@ export default async function AdminPage() {
           {/* AI Configuration */}
           <div className="mb-6">
             <LlmConfigSection />
+          </div>
+
+          {/* Badge Management */}
+          <div className="mb-6">
+            <BadgeManagementSection users={users as any} />
+          </div>
+
+          {/* User Statistics */}
+          <div className="mb-6">
+            <UserStatsSection users={users as any} />
           </div>
 
           {/* Notion Sync */}
