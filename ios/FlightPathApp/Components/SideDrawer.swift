@@ -6,6 +6,7 @@ struct SideDrawer: View {
     @EnvironmentObject var app: AppState
     @State private var showProfile = false
     @State private var showSettings = false
+    @State private var showDoorPitch = false
 
     private struct Link: Identifiable {
         let id = UUID()
@@ -28,6 +29,7 @@ struct SideDrawer: View {
             links.append(.init(title: "Admin Portal", systemImage: "shield.lefthalf.filled", useBrandMark: false, tab: nil))
         }
         links.append(.init(title: "Flight Path Program", systemImage: nil, useBrandMark: true, tab: nil))
+        links.append(.init(title: "Door Pitch", systemImage: "mic", useBrandMark: false, tab: nil))
         links.append(.init(title: "Profile", systemImage: "person.crop.circle", useBrandMark: false, tab: nil))
         links.append(.init(title: "Settings", systemImage: "gearshape", useBrandMark: false, tab: nil))
         return links
@@ -58,6 +60,7 @@ struct SideDrawer: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.spring(response: 0.34, dampingFraction: 0.86), value: app.drawerOpen)
         .allowsHitTesting(app.drawerOpen)
+        .sheet(isPresented: $showDoorPitch) { DoorPitchView() }
         .sheet(isPresented: $showProfile) { ProfileView(app: app) }
         .sheet(isPresented: $showSettings) { SettingsView(app: app) }
     }
@@ -125,6 +128,8 @@ struct SideDrawer: View {
     private func row(_ link: Link) -> some View {
         Button {
             switch link.title {
+            case "Door Pitch":
+                showDoorPitch = true
             case "Profile":
                 showProfile = true
             case "Settings":

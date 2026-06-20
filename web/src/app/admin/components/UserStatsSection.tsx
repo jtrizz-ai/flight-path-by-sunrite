@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import type { AppUser } from "@/lib/types";
+import { useEffect, useState } from "react";
+import {
+  AdminCard,
+  EmptyState,
+  SectionHeader,
+} from "@/components/admin/ui";
 
 type Stats = {
   user: {
@@ -44,94 +48,51 @@ function timeAgo(iso: string | null): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function UserStatsSection({ users }: { users: AppUser[] }) {
-  const [selectedUserId, setSelectedUserId] = useState("");
+export function UserStatsSection({ userId }: { userId: string }) {
   const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [loadedFor, setLoadedFor] = useState("");
 
   useEffect(() => {
-    if (!selectedUserId) {
-      setStats(null);
-      return;
-    }
-    setLoading(true);
-    fetch(`/api/admin/users/${selectedUserId}/stats`, { cache: "no-store" })
+    if (!userId) return;
+    let cancelled = false;
+    fetch(`/api/admin/users/${userId}/stats`, { cache: "no-store" })
       .then((r) => r.json())
-      .then((d) => setStats(d))
-      .catch(() => setStats(null))
-      .finally(() => setLoading(false));
-  }, [selectedUserId]);
+      .then((d) => {
+        if (cancelled) return;
+        setStats(d);
+        setFailed(false);
+        setLoadedFor(userId);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
-  const inputStyle: React.CSSProperties = {
-    backgroundColor: "rgba(255,255,255,0.04)",
-    border: "1px solid var(--color-fp-line)",
-    borderRadius: "14px",
-    color: "var(--color-fp-ink)",
-  };
+  if (!userId) {
+    return (
+      <AdminCard>
+        <SectionHeader title="Activity" subtitle="App opens, tally totals, page views, and badges." />
+        <EmptyState message="Select a member to view activity." />
+      </AdminCard>
+    );
+  }
+
+  const loading = loadedFor !== userId && !failed;
 
   return (
-    <div
-      className="rounded-[18px] p-6"
-      style={{
-        backgroundColor: "var(--color-fp-card)",
-        border: "1px solid var(--color-fp-card-line)",
-      }}
-    >
-      <h2
-        className="font-[var(--font-fp-sans)] text-[16px] font-bold mb-1"
-        style={{ color: "var(--color-fp-ink)" }}
-      >
-        User Statistics
-      </h2>
-      <p
-        className="font-[var(--font-fp-sans)] text-[12px] mb-4"
-        style={{ color: "var(--color-fp-ink-3)" }}
-      >
-        Activity, tally totals, page views, and badges per user.
-      </p>
+    <AdminCard>
+      <SectionHeader title="Activity" subtitle="App opens, tally totals, page views, and badges." />
 
-      {/* User selector */}
-      <label className="block mb-5">
-        <span
-          className="block pb-1.5 font-[var(--font-fp-mono)] text-[10px] tracking-[0.2em] uppercase"
-          style={{ color: "var(--color-fp-ink-3)" }}
-        >
-          Select User
-        </span>
-        <select
-          value={selectedUserId}
-          onChange={(e) => setSelectedUserId(e.target.value)}
-          className="px-4 py-2.5 font-[var(--font-fp-sans)] text-[13px] focus:outline-none min-w-[240px]"
-          style={inputStyle}
-        >
-          <option value="" style={{ backgroundColor: "#0C0C10" }}>
-            Select a user...
-          </option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id} style={{ backgroundColor: "#0C0C10" }}>
-              {u.full_name || u.email} {u.region ? `· ${u.region}` : ""}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      {!selectedUserId ? (
-        <div
-          className="text-center py-8 font-[var(--font-fp-mono)] text-[11px]"
-          style={{ color: "var(--color-fp-ink-3)" }}
-        >
-          Select a user to view statistics.
-        </div>
-      ) : loading ? (
-        <div
-          className="text-center py-8 font-[var(--font-fp-mono)] text-[11px]"
-          style={{ color: "var(--color-fp-ink-3)" }}
-        >
-          Loading...
-        </div>
+      {loading ? (
+        <EmptyState message="Loading..." />
+      ) : failed ? (
+        <EmptyState message="Failed to load stats." />
       ) : stats ? (
         <div className="space-y-5">
-          {/* Activity row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatBox label="App Opens" value={String(stats.user.app_open_count)} />
             <StatBox label="Last Active" value={timeAgo(stats.user.last_active_at)} />
@@ -139,7 +100,6 @@ export function UserStatsSection({ users }: { users: AppUser[] }) {
             <StatBox label="Joined" value={timeAgo(stats.user.created_at)} />
           </div>
 
-          {/* Tally totals */}
           <div>
             <SectionLabel>All-Time Tally</SectionLabel>
             <div className="grid grid-cols-3 gap-3">
@@ -149,9 +109,10 @@ export function UserStatsSection({ users }: { users: AppUser[] }) {
             </div>
           </div>
 
-          {/* Quarterly tally */}
           <div>
-            <SectionLabel>Q{stats.quarter} {stats.year} Tally</SectionLabel>
+            <SectionLabel>
+              Q{stats.quarter} {stats.year} Tally
+            </SectionLabel>
             <div className="grid grid-cols-3 gap-3">
               <StatBox label="Doors" value={String(stats.quarterlyTally.doors || 0)} />
               <StatBox label="Conversations" value={String(stats.quarterlyTally.conversations || 0)} />
@@ -159,7 +120,6 @@ export function UserStatsSection({ users }: { users: AppUser[] }) {
             </div>
           </div>
 
-          {/* Badges */}
           {stats.badges.length > 0 && (
             <div>
               <SectionLabel>Badges ({stats.badges.length})</SectionLabel>
@@ -186,7 +146,6 @@ export function UserStatsSection({ users }: { users: AppUser[] }) {
             </div>
           )}
 
-          {/* Recent page views */}
           <div>
             <SectionLabel>Recent Page Views ({stats.recentViews.length})</SectionLabel>
             {stats.recentViews.length === 0 ? (
@@ -225,15 +184,8 @@ export function UserStatsSection({ users }: { users: AppUser[] }) {
             )}
           </div>
         </div>
-      ) : (
-        <div
-          className="font-[var(--font-fp-mono)] text-[11px]"
-          style={{ color: "var(--color-fp-accent)" }}
-        >
-          Failed to load stats.
-        </div>
-      )}
-    </div>
+      ) : null}
+    </AdminCard>
   );
 }
 

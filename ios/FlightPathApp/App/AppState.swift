@@ -79,11 +79,11 @@ final class AppState: ObservableObject {
             user = exchange.user
             isAuthenticated = true
             await onAuthenticated()
-        } catch let APIError.http(403, _) {
+        } catch APIError.http(403, _) {
             signInError = "Your email isn't on the allowlist."
-        } catch let APIError.http(401, _) {
+        } catch APIError.http(401, _) {
             signInError = "Google sign-in could not be verified."
-        } catch let APIError.network(_) {
+        } catch APIError.network(_) {
             signInError = "Could not reach the backend. Check Settings → Backend URL."
         } catch {
             // User-cancelled Google sign-in lands here silently — don't surface as error.

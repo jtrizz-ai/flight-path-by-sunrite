@@ -115,9 +115,9 @@ struct DoorPitchView: View {
         VStack(alignment: .leading, spacing: 14) {
             PitchSectionHeader(kicker: "02 — Reading a Line", title: "How to Read a Pitch Line")
             HStack(spacing: 8) {
-                LegendCard(label: "Bold Word",     body: "The word you stress.")
-                LegendCard(label: "Arrow Emoji",   body: "The direction your voice goes.")
-                LegendCard(label: "Bracketed Tag", body: "The energy / vibe of the delivery.")
+                LegendCard(label: "Bold Word",     content: "The word you stress.")
+                LegendCard(label: "Arrow Emoji",   content: "The direction your voice goes.")
+                LegendCard(label: "Bracketed Tag", content: "The energy / vibe of the delivery.")
             }
             HStack(spacing: 0) {
                 Rectangle().fill(Color.fpAccent).frame(width: 2)
@@ -329,7 +329,7 @@ private struct KeywordRow: View {
 
 private struct LegendCard: View {
     let label: String
-    let body: String
+    let content: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -337,7 +337,7 @@ private struct LegendCard: View {
                 .font(FPFont.mono(9, .bold))
                 .tracking(1.4)
                 .foregroundColor(.fpAccent2)
-            Text(body)
+            Text(content)
                 .font(FPFont.sans(12, .medium))
                 .foregroundColor(.ink2)
                 .fixedSize(horizontal: false, vertical: true)

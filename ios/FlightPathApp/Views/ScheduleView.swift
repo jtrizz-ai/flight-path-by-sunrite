@@ -440,7 +440,7 @@ private struct ResourceRow: View {
 
 // MARK: - MilestoneDetailSheet
 
-struct MilestoneDetailSheet: View {
+fileprivate struct MilestoneDetailSheet: View {
     let def: MilestoneDefinition
     @ObservedObject var vm: ScheduleViewModel
     let isManager: Bool
