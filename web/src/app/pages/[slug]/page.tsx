@@ -372,6 +372,14 @@ export default async function PageDetailPage({
   const page = await getPage(slug);
   if (!page) notFound();
 
+  // Track page view (server-side; non-blocking, won't fail the page render)
+  if (session.user.id) {
+    query(
+      `INSERT INTO page_views (user_id, path, title) VALUES ($1, $2, $3)`,
+      [session.user.id, `/pages/${slug}`, page.title]
+    ).catch(() => {});
+  }
+
   const contentBlocks = (page.content?.blocks ?? []) as Block[];
 
   return (

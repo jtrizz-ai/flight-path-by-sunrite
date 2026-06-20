@@ -106,7 +106,7 @@ export async function upsertAppUser(
        SET full_name   = COALESCE(EXCLUDED.full_name,   app_users.full_name),
            avatar_url  = COALESCE(EXCLUDED.avatar_url,  app_users.avatar_url),
            last_active_at = NOW()
-     RETURNING id, email, full_name, avatar_url, role, status, phone, town, created_at, last_active_at`,
+     RETURNING id, email, full_name, avatar_url, role, status, phone, town, region, team, hire_date, app_open_count, last_app_open_at, created_at, last_active_at`,
     [email, fullName, avatarUrl]
   );
   return rows[0];

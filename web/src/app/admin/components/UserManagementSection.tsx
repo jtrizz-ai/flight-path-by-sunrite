@@ -122,6 +122,27 @@ export function UserManagementSection() {
     }
   }
 
+  async function handleUpdateField(userId: string, field: "region" | "team", value: string) {
+    try {
+      setError(null);
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || `Failed to update ${field}`);
+      }
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, [field]: value || null } : u))
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+      loadUsers();
+    }
+  }
+
   if (loading) {
     return (
       <div
@@ -284,11 +305,11 @@ export function UserManagementSection() {
           <table className="w-full">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--color-fp-line)" }}>
-                {["Email", "Name", "Role", "Status", "Actions"].map((h, i) => (
+                {["Email", "Name", "Role", "Region", "Team", "Status", "Actions"].map((h, i) => (
                   <th
                     key={h}
                     className={`py-3 px-2 font-[var(--font-fp-mono)] text-[10px] tracking-[0.1em] uppercase ${
-                      i === 4 ? "text-right" : "text-left"
+                      i === 6 ? "text-right" : "text-left"
                     }`}
                     style={{ color: "var(--color-fp-ink-3)" }}
                   >
@@ -329,6 +350,30 @@ export function UserManagementSection() {
                         </option>
                       ))}
                     </select>
+                  </td>
+                  <td className="py-3 px-2">
+                    <input
+                      defaultValue={user.region ?? ""}
+                      onBlur={(e) => {
+                        if (e.target.value !== (user.region ?? ""))
+                          handleUpdateField(user.id, "region", e.target.value);
+                      }}
+                      placeholder="—"
+                      className="w-20 rounded-[6px] px-2 py-1 font-[var(--font-fp-sans)] text-[12px] focus:outline-none"
+                      style={inputStyle}
+                    />
+                  </td>
+                  <td className="py-3 px-2">
+                    <input
+                      defaultValue={user.team ?? ""}
+                      onBlur={(e) => {
+                        if (e.target.value !== (user.team ?? ""))
+                          handleUpdateField(user.id, "team", e.target.value);
+                      }}
+                      placeholder="—"
+                      className="w-20 rounded-[6px] px-2 py-1 font-[var(--font-fp-sans)] text-[12px] focus:outline-none"
+                      style={inputStyle}
+                    />
                   </td>
                   <td className="py-3 px-2">
                     <button

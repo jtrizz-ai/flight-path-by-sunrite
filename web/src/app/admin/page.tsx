@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { FPTopNav } from "@/components/fp/FPTopNav";
 import { UserManagementSection } from "./components/UserManagementSection";
 import { LlmConfigSection } from "./components/LlmConfigSection";
+import { BadgeManagementSection } from "./components/BadgeManagementSection";
 
 async function handleSignOut() {
   "use server";

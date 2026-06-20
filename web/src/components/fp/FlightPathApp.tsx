@@ -27,11 +27,6 @@ export function FlightPathApp({
   const [currentTab, setCurrentTab] = useState<'home' | TabId>('home');
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Tally state
-  const [doors, setDoors] = useState(0);
-  const [conversations, setConversations] = useState(0);
-  const [appointments, setAppointments] = useState(0);
-
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -116,7 +111,18 @@ export function FlightPathApp({
   const handleNavigate = (tab: 'home' | TabId) => {
     setCurrentTab(tab);
     setDrawerOpen(false);
+    // Log tab navigation as a page view
+    fetch('/api/track/page-view', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: `/flight-path?tab=${tab}`, title: tab }),
+    }).catch(() => {});
   };
+
+  // Track app open on mount (fire-and-forget)
+  useEffect(() => {
+    fetch('/api/track/app-open', { method: 'POST' }).catch(() => {});
+  }, []);
 
   const userInitials = userName
     .split(' ')
@@ -141,16 +147,7 @@ export function FlightPathApp({
       <div className="flex-1 relative overflow-hidden">
         {currentTab === 'home' && <HomeView userName={userName} />}
         {currentTab === 'schedule' && <ScheduleView pages={pages} />}
-        {currentTab === 'tally' && (
-          <TallyView
-            doors={doors}
-            conversations={conversations}
-            appointments={appointments}
-            onDoorsChange={setDoors}
-            onConversationsChange={setConversations}
-            onAppointmentsChange={setAppointments}
-          />
-        )}
+        {currentTab === 'tally' && <TallyView />}
         {currentTab === 'chat' && (
           <ChatView
             messages={messages}

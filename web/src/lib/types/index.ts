@@ -18,8 +18,34 @@ export interface AppUser {
   status: UserStatus;
   phone: string | null;
   town: string | null;
+  region: string | null;
+  team: string | null;
+  hire_date: string | null;
+  app_open_count: number;
+  last_app_open_at: string | null;
   created_at: string;
   last_active_at: string;
+}
+
+export interface Badge {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  is_quarterly: boolean;
+  display_order: number;
+}
+
+export interface UserBadge {
+  id: string;
+  user_id: string;
+  badge_id: string;
+  badge: Badge;
+  quarter: number | null;
+  year: number | null;
+  awarded_by: string | null;
+  awarded_at: string;
+  notes: string | null;
 }
 
 // One crawled Notion page (see db/init/01-schema.sql -> notion_pages).

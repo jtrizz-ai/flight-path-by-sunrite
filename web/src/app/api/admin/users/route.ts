@@ -23,7 +23,8 @@ export async function GET() {
 
   try {
     const { rows } = await query<AppUser>(
-      `SELECT id, email, full_name, avatar_url, role, status, phone, town, 
+      `SELECT id, email, full_name, avatar_url, role, status, phone, town,
+              region, team, hire_date, app_open_count, last_app_open_at,
               created_at, last_active_at
        FROM app_users
        ORDER BY created_at DESC`
