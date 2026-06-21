@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
+  Animated,
   View,
   Text,
   TextInput,
@@ -9,18 +11,24 @@ import {
   Platform,
   ActivityIndicator,
   StyleSheet,
+  Modal,
+  FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "expo-router";
 
 import { FlightPathBackground } from "@/components/FlightPathBackground";
 import { MonoLabel } from "@/components/Type";
+import { PreviewBanner } from "@/components/PreviewBanner";
 import { colors, fonts, spacing, radius } from "@/constants/theme";
 import {
   fetchChatThread,
   sendChat,
   type ChatSource,
 } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { PREVIEW_CHAT_SEED, PREVIEW_CHAT_REPLIES } from "@/lib/preview";
 
 type UIMessage = {
   id: string;
@@ -29,14 +37,107 @@ type UIMessage = {
   sources?: ChatSource[] | null;
 };
 
+type StoredThread = {
+  id: string;
+  date: string;
+  preview: string;
+  messages: UIMessage[];
+};
+
+const HISTORY_KEY = "fp.chat_history";
+
+async function loadStoredHistory(): Promise<StoredThread[]> {
+  try {
+    const json = await AsyncStorage.getItem(HISTORY_KEY);
+    return json ? (JSON.parse(json) as StoredThread[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function archiveThread(messages: UIMessage[]): Promise<void> {
+  if (messages.length === 0) return;
+  const existing = await loadStoredHistory();
+  const firstUser = messages.find((m) => m.role === "user");
+  const thread: StoredThread = {
+    id: String(Date.now()),
+    date: new Date().toISOString(),
+    preview: firstUser?.content.slice(0, 100) ?? "Chat",
+    messages,
+  };
+  const updated = [thread, ...existing].slice(0, 30);
+  await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function ChatScreen() {
+  const { preview } = useAuth();
+  const navigation = useNavigation();
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<StoredThread[]>([]);
   const scrollRef = useRef<ScrollView>(null);
 
+  // Refs so header button callbacks always call the latest handler without
+  // re-running useLayoutEffect (which would flash the header).
+  const newChatRef = useRef<() => void>(() => {});
+  const historyRef = useRef<() => void>(() => {});
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <Pressable
+          hitSlop={12}
+          style={{ marginLeft: 16 }}
+          onPress={() => historyRef.current()}
+        >
+          {({ pressed }) => (
+            <Ionicons
+              name="time-outline"
+              size={22}
+              color={colors.ink2}
+              style={{ opacity: pressed ? 0.5 : 1 }}
+            />
+          )}
+        </Pressable>
+      ),
+      headerRight: () => (
+        <Pressable
+          hitSlop={12}
+          style={{ marginRight: 16 }}
+          onPress={() => newChatRef.current()}
+        >
+          {({ pressed }) => (
+            <Ionicons
+              name="add"
+              size={28}
+              color={colors.ink2}
+              style={{ opacity: pressed ? 0.5 : 1 }}
+            />
+          )}
+        </Pressable>
+      ),
+    });
+  }, [navigation]);
+
   const load = useCallback(async () => {
+    if (preview) {
+      setMessages(PREVIEW_CHAT_SEED);
+      setLoading(false);
+      return;
+    }
     try {
       const thread = await fetchChatThread();
       setMessages(
@@ -52,7 +153,7 @@ export default function ChatScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [preview]);
 
   useEffect(() => {
     load();
@@ -62,6 +163,32 @@ export default function ChatScreen() {
     requestAnimationFrame(() =>
       scrollRef.current?.scrollToEnd({ animated: true })
     );
+  }, []);
+
+  const handleNewChat = useCallback(async () => {
+    await archiveThread(messages);
+    setMessages([]);
+    setInput("");
+  }, [messages]);
+
+  const handleOpenHistory = useCallback(async () => {
+    const h = await loadStoredHistory();
+    setHistory(h);
+    setShowHistory(true);
+  }, []);
+
+  // Keep refs fresh on every render.
+  newChatRef.current = handleNewChat;
+  historyRef.current = handleOpenHistory;
+
+  const handleLoadThread = useCallback((thread: StoredThread) => {
+    setMessages(thread.messages);
+    setShowHistory(false);
+  }, []);
+
+  const handleClearHistory = useCallback(async () => {
+    await AsyncStorage.removeItem(HISTORY_KEY);
+    setHistory([]);
   }, []);
 
   const handleSend = useCallback(async () => {
@@ -76,6 +203,21 @@ export default function ChatScreen() {
     setMessages((prev) => [...prev, userMsg]);
     setSending(true);
     scrollToBottom();
+
+    if (preview) {
+      const reply =
+        PREVIEW_CHAT_REPLIES[Math.floor(Math.random() * PREVIEW_CHAT_REPLIES.length)];
+      setTimeout(() => {
+        setMessages((prev) => [
+          ...prev,
+          { id: `a${Date.now()}`, role: "assistant", content: reply },
+        ]);
+        setSending(false);
+        scrollToBottom();
+      }, 700);
+      return;
+    }
+
     try {
       const res = await sendChat(text);
       setMessages((prev) => [
@@ -101,7 +243,7 @@ export default function ChatScreen() {
       setSending(false);
       scrollToBottom();
     }
-  }, [input, sending, scrollToBottom]);
+  }, [input, sending, scrollToBottom, preview]);
 
   return (
     <FlightPathBackground>
@@ -116,6 +258,7 @@ export default function ChatScreen() {
             contentContainerStyle={styles.list}
             onContentSizeChange={scrollToBottom}
           >
+            {preview && <PreviewBanner />}
             {loading ? (
               <ActivityIndicator
                 color={colors.ink2}
@@ -137,7 +280,7 @@ export default function ChatScreen() {
               )
             )}
 
-            {sending && <TypingBubble />}
+            {sending && <ThinkingDots />}
           </ScrollView>
 
           <View style={styles.inputBar}>
@@ -162,6 +305,20 @@ export default function ChatScreen() {
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
+
+      <Modal
+        visible={showHistory}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowHistory(false)}
+      >
+        <HistorySheet
+          history={history}
+          onLoad={handleLoadThread}
+          onClear={handleClearHistory}
+          onClose={() => setShowHistory(false)}
+        />
+      </Modal>
     </FlightPathBackground>
   );
 }
@@ -225,16 +382,136 @@ function SourceCard({ source }: { source: ChatSource }) {
   );
 }
 
-function TypingBubble() {
+// Three dots that bounce up in staggered sequence, like a classic thinking indicator.
+function ThinkingDots() {
+  const anim0 = useRef(new Animated.Value(0)).current;
+  const anim1 = useRef(new Animated.Value(0)).current;
+  const anim2 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // All three loops have the same total duration so they stay in phase.
+    const CYCLE = 1400;
+    const STAGGER = 200;
+    const UP = 250;
+    const DOWN = 250;
+
+    const pulse = (anim: Animated.Value, index: number) => {
+      const startDelay = index * STAGGER;
+      const endDelay = CYCLE - startDelay - UP - DOWN;
+      return Animated.loop(
+        Animated.sequence([
+          Animated.delay(startDelay),
+          Animated.timing(anim, { toValue: 1, duration: UP, useNativeDriver: true }),
+          Animated.timing(anim, { toValue: 0, duration: DOWN, useNativeDriver: true }),
+          Animated.delay(endDelay),
+        ])
+      );
+    };
+
+    const l0 = pulse(anim0, 0);
+    const l1 = pulse(anim1, 1);
+    const l2 = pulse(anim2, 2);
+    l0.start();
+    l1.start();
+    l2.start();
+    return () => {
+      l0.stop();
+      l1.stop();
+      l2.stop();
+    };
+  }, [anim0, anim1, anim2]);
+
+  const dotStyle = (anim: Animated.Value) => ({
+    opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0.25, 1] }),
+    transform: [
+      { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) },
+    ],
+  });
+
   return (
     <View style={styles.aiRow}>
-      <View style={[styles.aiBubble, { flexDirection: "row", alignItems: "center" }]}>
-        <Text style={styles.dots}>···</Text>
-        <Text style={[styles.aiText, { marginLeft: spacing.xs, opacity: 0.6 }]}>
-          thinking
-        </Text>
+      <View style={[styles.aiBubble, styles.thinkingBubble]}>
+        {([anim0, anim1, anim2] as Animated.Value[]).map((anim, i) => (
+          <Animated.View key={i} style={[styles.thinkingDot, dotStyle(anim)]} />
+        ))}
       </View>
     </View>
+  );
+}
+
+function HistorySheet({
+  history,
+  onLoad,
+  onClear,
+  onClose,
+}: {
+  history: StoredThread[];
+  onLoad: (thread: StoredThread) => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <SafeAreaView style={styles.historyContainer} edges={["top", "bottom"]}>
+      <View style={styles.historyHeader}>
+        <MonoLabel>History</MonoLabel>
+        <Pressable onPress={onClose} hitSlop={12}>
+          {({ pressed }) => (
+            <Ionicons
+              name="close"
+              size={24}
+              color={colors.ink2}
+              style={{ opacity: pressed ? 0.5 : 1 }}
+            />
+          )}
+        </Pressable>
+      </View>
+
+      {history.length === 0 ? (
+        <View style={styles.historyEmpty}>
+          <Ionicons name="time-outline" size={42} color={colors.ink3} />
+          <Text style={styles.historyEmptyTitle}>No saved chats yet</Text>
+          <Text style={styles.historyEmptyBody}>
+            Tap + to start a new chat. Your current conversation will be saved
+            here automatically.
+          </Text>
+        </View>
+      ) : (
+        <>
+          <FlatList
+            data={history}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.historyList}
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => onLoad(item)}
+                style={({ pressed }) => [
+                  styles.historyItem,
+                  pressed && { opacity: 0.65 },
+                ]}
+              >
+                <Text style={styles.historyItemDate}>{formatDate(item.date)}</Text>
+                <Text style={styles.historyItemPreview} numberOfLines={2}>
+                  {item.preview}
+                </Text>
+                <Text style={styles.historyItemMeta}>
+                  {item.messages.length} messages
+                </Text>
+              </Pressable>
+            )}
+            ItemSeparatorComponent={() => (
+              <View style={{ height: 1, backgroundColor: colors.line }} />
+            )}
+          />
+          <Pressable onPress={onClear} style={styles.clearBtn}>
+            {({ pressed }) => (
+              <Text style={[styles.clearBtnText, pressed && { opacity: 0.5 }]}>
+                Clear All History
+              </Text>
+            )}
+          </Pressable>
+        </>
+      )}
+    </SafeAreaView>
   );
 }
 
@@ -297,11 +574,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  dots: {
-    color: colors.ink2,
-    fontFamily: fonts.monoBold,
-    fontSize: 18,
-    letterSpacing: 3,
+  thinkingBubble: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingVertical: 18,
+  },
+  thinkingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.ink2,
   },
   sources: {
     marginTop: spacing.sm,
@@ -361,5 +644,78 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
+  },
+  // History sheet
+  historyContainer: {
+    flex: 1,
+    backgroundColor: colors.bg2,
+  },
+  historyHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+  },
+  historyEmpty: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  historyEmptyTitle: {
+    color: colors.ink,
+    fontFamily: fonts.sansSemiBold,
+    fontSize: 16,
+    marginTop: spacing.sm,
+  },
+  historyEmptyBody: {
+    color: colors.ink3,
+    fontFamily: fonts.sansMedium,
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: "center",
+  },
+  historyList: {
+    paddingVertical: spacing.sm,
+  },
+  historyItem: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  historyItemDate: {
+    color: colors.ink3,
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    marginBottom: 4,
+  },
+  historyItemPreview: {
+    color: colors.ink,
+    fontFamily: fonts.sansMedium,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  historyItemMeta: {
+    color: colors.ink3,
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    marginTop: 4,
+  },
+  clearBtn: {
+    margin: spacing.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: radius.base,
+    alignItems: "center",
+  },
+  clearBtnText: {
+    color: colors.accent,
+    fontFamily: fonts.sansSemiBold,
+    fontSize: 13,
+    letterSpacing: 0.5,
   },
 });
