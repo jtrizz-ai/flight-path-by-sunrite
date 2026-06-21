@@ -15,11 +15,15 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { FlightPathBackground } from "@/components/FlightPathBackground";
 import { MonoLabel, HeroWordmark } from "@/components/Type";
+import { PreviewBanner } from "@/components/PreviewBanner";
 import { colors, fonts, spacing, radius } from "@/constants/theme";
 import { fetchPages, type PageSummary } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { PREVIEW_PAGES } from "@/lib/preview";
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const { preview } = useAuth();
   const [pages, setPages] = useState<PageSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -27,6 +31,11 @@ export default function LibraryScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (preview) {
+      setPages(PREVIEW_PAGES);
+      setLoading(false);
+      return;
+    }
     try {
       setError(null);
       const list = await fetchPages();
@@ -36,7 +45,7 @@ export default function LibraryScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [preview]);
 
   useEffect(() => {
     load();
@@ -69,6 +78,8 @@ export default function LibraryScreen() {
         >
           <MonoLabel style={{ marginBottom: spacing.sm }}>Program</MonoLabel>
           <HeroWordmark>Library</HeroWordmark>
+
+          {preview && <PreviewBanner />}
 
           <View style={styles.searchBox}>
             <Ionicons name="search" size={16} color={colors.ink3} />

@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { FlightPathBackground } from "@/components/FlightPathBackground";
 import { MonoLabel, HeroWordmark } from "@/components/Type";
 import { Card } from "@/components/Card";
+import { PreviewBanner } from "@/components/PreviewBanner";
 import { colors, fonts, spacing, radius } from "@/constants/theme";
 import {
   fetchTally,
@@ -21,17 +22,25 @@ import {
   type Metric,
   type TallyTotals,
 } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { PREVIEW_TALLY } from "@/lib/preview";
 
 const GOALS: TallyTotals = { doors: 40, conversations: 15, appointments: 5 };
 const ZERO: TallyTotals = { doors: 0, conversations: 0, appointments: 0 };
 
 export default function TallyScreen() {
+  const { preview } = useAuth();
   const [totals, setTotals] = useState<TallyTotals>(ZERO);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (preview) {
+      setTotals(PREVIEW_TALLY);
+      setLoading(false);
+      return;
+    }
     try {
       setError(null);
       const t = await fetchTally();
@@ -41,7 +50,7 @@ export default function TallyScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [preview]);
 
   useEffect(() => {
     load();
@@ -58,6 +67,7 @@ export default function TallyScreen() {
       // optimistic
       const prev = totals[metric];
       setTotals((cur) => ({ ...cur, [metric]: Math.max(0, cur[metric] + amount) }));
+      if (preview) return; // local-only in preview mode
       try {
         const t = await incrementTally(metric, amount);
         setTotals(t);
@@ -66,7 +76,7 @@ export default function TallyScreen() {
         setError(e instanceof Error ? e.message : "Failed to update tally");
       }
     },
-    [totals]
+    [totals, preview]
   );
 
   return (
@@ -84,6 +94,8 @@ export default function TallyScreen() {
         >
           <MonoLabel style={{ marginBottom: spacing.sm }}>Daily Target</MonoLabel>
           <HeroWordmark>Tally</HeroWordmark>
+
+          {preview && <PreviewBanner />}
 
           {error && (
             <View style={styles.errorBox}>

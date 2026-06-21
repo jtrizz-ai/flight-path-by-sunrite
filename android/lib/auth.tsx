@@ -9,7 +9,12 @@ import { GoogleSignin } from "@react-native-google-signin/google-signin";
 
 import { request, getToken, setToken } from "./api";
 import type { UserProfile } from "./types";
-import { GOOGLE_WEB_CLIENT_ID } from "./config";
+import { GOOGLE_WEB_CLIENT_ID, IS_EXPO_GO } from "./config";
+import {
+  isPreviewEnabled,
+  setPreviewEnabled,
+  PREVIEW_USER,
+} from "./preview";
 
 type ExchangeResponse = {
   token: string;
@@ -23,9 +28,12 @@ type AuthState = {
   loading: boolean; // initial restore in progress
   signingIn: boolean;
   error: string | null;
+  preview: boolean;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   setUser: (u: UserProfile | null) => void;
+  enablePreview: () => Promise<void>;
+  disablePreview: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -41,11 +49,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreviewState] = useState(false);
 
-  // Restore a previous session on app open (if a token is stored).
+  // Restore a previous session on app open. Preview mode is checked first so
+  // the demo path needs no token + no backend.
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      if (await isPreviewEnabled()) {
+        if (!cancelled) {
+          setUser(PREVIEW_USER);
+          setPreviewState(true);
+          setLoading(false);
+        }
+        return;
+      }
       const token = await getToken();
       if (!token) {
         if (!cancelled) setLoading(false);
@@ -69,6 +87,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSigningIn(true);
     setError(null);
     try {
+      if (IS_EXPO_GO) {
+        throw new Error(
+          "Google Sign-In needs the development build (Expo Go can't do it). You can still explore the app and configure the backend in Settings."
+        );
+      }
       if (!GOOGLE_WEB_CLIENT_ID) {
         throw new Error(
           "Google Client ID not set. Add it under expo.extra.googleWebClientId in app.json and rebuild."
@@ -110,6 +133,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Exit preview mode too (so "Sign Out" always returns to login).
+    await setPreviewEnabled(false);
+    setPreviewState(false);
     try {
       await GoogleSignin.signOut();
     } catch {
@@ -125,9 +151,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
   }, []);
 
+  // ── Preview mode (TEMPORARY demo crutch — see lib/preview.ts) ──────────
+  const enablePreview = useCallback(async () => {
+    await setPreviewEnabled(true);
+    setUser(PREVIEW_USER);
+    setPreviewState(true);
+  }, []);
+
+  const disablePreview = useCallback(async () => {
+    await setPreviewEnabled(false);
+    setPreviewState(false);
+    setUser(null);
+  }, []);
+
   return (
     <AuthContext.Provider
-      value={{ user, loading, signingIn, error, signIn, signOut, setUser }}
+      value={{
+        user,
+        loading,
+        signingIn,
+        error,
+        preview,
+        signIn,
+        signOut,
+        setUser,
+        enablePreview,
+        disablePreview,
+      }}
     >
       {children}
     </AuthContext.Provider>

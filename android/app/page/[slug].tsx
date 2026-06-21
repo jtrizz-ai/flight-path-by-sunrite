@@ -11,18 +11,27 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { FlightPathBackground } from "@/components/FlightPathBackground";
 import { MonoLabel } from "@/components/Type";
+import { PreviewBanner } from "@/components/PreviewBanner";
 import { BlockRenderer } from "@/components/Blocks";
 import { colors, fonts, spacing } from "@/constants/theme";
 import { fetchPage, readBlocks, type PageDetail } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { PREVIEW_SAMPLE_PAGE } from "@/lib/preview";
 
 export default function PageDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const navigation = useNavigation();
+  const { preview } = useAuth();
   const [page, setPage] = useState<PageDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (preview) {
+      setPage(PREVIEW_SAMPLE_PAGE);
+      setLoading(false);
+      return;
+    }
     if (!slug) return;
     setLoading(true);
     setError(null);
@@ -34,7 +43,7 @@ export default function PageDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [slug]);
+  }, [slug, preview]);
 
   useFocusEffect(
     useCallback(() => {
@@ -66,6 +75,7 @@ export default function PageDetailScreen() {
           ) : page ? (
             <>
               <View style={styles.header}>
+                {preview && <PreviewBanner />}
                 <Text style={styles.icon}>{page.icon || "📄"}</Text>
                 <MonoLabel style={{ marginTop: spacing.sm }}>
                   {updated ? `Updated ${updated}` : "Flight Path"}

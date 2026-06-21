@@ -23,7 +23,7 @@ export default function SettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [health, setHealth] = useState<HealthResult | null>(null);
-  const { user, signOut } = useAuth();
+  const { user, signOut, preview, enablePreview, disablePreview } = useAuth();
 
   useEffect(() => {
     getBaseUrl().then((v) => setUrl(v));
@@ -131,6 +131,23 @@ export default function SettingsScreen() {
           <Card style={{ marginTop: spacing.md }}>
             <MonoLabel>About</MonoLabel>
             <Text style={styles.body}>Flight Path · v0.1.0 (Phase 2)</Text>
+
+            {/* ⚠️ TEMPORARY — preview/demo crutch. Remove before launch. */}
+            <View style={styles.previewRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.body}>Preview mode (demo, no sign-in)</Text>
+              </View>
+              <Pressable
+                style={
+                  preview ? styles.previewBtnOn : styles.previewBtnOff
+                }
+                onPress={() => (preview ? disablePreview() : enablePreview())}
+              >
+                <Text style={styles.previewBtnText}>
+                  {preview ? "ON" : "OFF"}
+                </Text>
+              </Pressable>
+            </View>
           </Card>
         </ScrollView>
       </SafeAreaView>
@@ -262,5 +279,30 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 1,
     textTransform: "uppercase",
+  },
+  previewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  previewBtnOff: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  previewBtnOn: {
+    backgroundColor: colors.accent,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  previewBtnText: {
+    color: "#fff",
+    fontFamily: fonts.monoBold,
+    fontSize: 11,
+    letterSpacing: 1,
   },
 });

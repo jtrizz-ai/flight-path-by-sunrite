@@ -1,4 +1,4 @@
-import Constants from "expo-constants";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 
 /**
  * Google OAuth "Web application" Client ID — the SAME one the web/iOS apps use
@@ -11,3 +11,8 @@ import Constants from "expo-constants";
 const extra = (Constants.expoConfig?.extra ?? {}) as { googleWebClientId?: string };
 
 export const GOOGLE_WEB_CLIENT_ID = extra.googleWebClientId ?? "";
+
+/** True when running inside Expo Go (no native Google Sign-In available). */
+export const IS_EXPO_GO =
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+

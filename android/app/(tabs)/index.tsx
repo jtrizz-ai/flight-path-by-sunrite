@@ -7,14 +7,22 @@ import { Ionicons } from "@expo/vector-icons";
 import { FlightPathBackground } from "@/components/FlightPathBackground";
 import { MonoLabel, HeroWordmark } from "@/components/Type";
 import { Card } from "@/components/Card";
+import { PreviewBanner } from "@/components/PreviewBanner";
 import { colors, fonts, spacing, radius } from "@/constants/theme";
 import { fetchPages, type PageSummary } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { PREVIEW_PAGES } from "@/lib/preview";
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { preview } = useAuth();
   const [pages, setPages] = useState<PageSummary[]>([]);
 
   useEffect(() => {
+    if (preview) {
+      setPages(PREVIEW_PAGES.slice(0, 5));
+      return;
+    }
     fetchPages()
       .then((list) =>
         setPages(
@@ -24,7 +32,7 @@ export default function HomeScreen() {
         )
       )
       .catch(() => {});
-  }, []);
+  }, [preview]);
 
   const openPage = useCallback(
     (slug: string) => router.push(`/page/${slug}`),
@@ -38,6 +46,8 @@ export default function HomeScreen() {
           <MonoLabel style={{ marginBottom: spacing.sm }}>Sunrite Solar</MonoLabel>
           <HeroWordmark>Flight Path</HeroWordmark>
           <Text style={styles.subtitle}>Your program companion</Text>
+
+          {preview && <PreviewBanner />}
 
           <Card style={{ marginTop: spacing.xl }}>
             <View style={styles.cardHead}>
