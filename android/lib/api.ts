@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
+import type { UserProfile } from "./types";
 
 /**
  * Flight Path API client (Android). Mirrors the iOS `APIClient` and talks to
@@ -112,4 +113,156 @@ export async function checkHealth(): Promise<HealthResult> {
       detail: e instanceof Error ? e.message : "Unreachable",
     };
   }
+}
+
+// ── Typed endpoints (Phase 3: tally + profile) ────────────────────────────
+
+export type Metric = "doors" | "conversations" | "appointments";
+export type TallyTotals = Record<Metric, number>;
+type TallyResponse = { totals: TallyTotals };
+type MeResponse = { user: UserProfile };
+
+export type UserProfilePatch = {
+  fullName?: string;
+  phone?: string | null;
+  town?: string | null;
+  hireDate?: string | null;
+  avatarUrl?: string | null;
+};
+
+export async function fetchTally(): Promise<TallyTotals> {
+  const r = await request<TallyResponse>("/api/tally");
+  return r.totals;
+}
+
+export async function incrementTally(
+  metric: Metric,
+  amount: 1 | -1
+): Promise<TallyTotals> {
+  const r = await request<TallyResponse>("/api/tally", {
+    method: "POST",
+    body: JSON.stringify({ metric, amount }),
+  });
+  return r.totals;
+}
+
+export async function fetchMe(): Promise<UserProfile> {
+  const r = await request<MeResponse>("/api/me");
+  return r.user;
+}
+
+export async function updateProfile(
+  patch: UserProfilePatch
+): Promise<UserProfile> {
+  const r = await request<MeResponse>("/api/profile", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return r.user;
+}
+
+// ── Chat (Phase 5) ────────────────────────────────────────────────────────
+
+export type ChatSource = {
+  pageId: string;
+  title: string;
+  slug: string;
+  snippet: string;
+};
+export type ChatMessageRecord = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  sources: ChatSource[] | null;
+  createdAt: string;
+};
+export type ChatThread = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: ChatMessageRecord[];
+};
+
+type ThreadResponse = { thread: ChatThread };
+type ChatSendResponse = { answer: string; sources: ChatSource[] };
+
+export async function fetchChatThread(): Promise<ChatThread> {
+  const r = await request<ThreadResponse>("/api/chat/threads");
+  return r.thread;
+}
+
+export async function sendChat(
+  message: string
+): Promise<{ answer: string; sources: ChatSource[] }> {
+  return await request<ChatSendResponse>("/api/chat", {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  });
+}
+
+// ── Notion pages (Phase 6: reader) ────────────────────────────────────────
+
+export type Run = {
+  text: string;
+  href?: string;
+  bold?: boolean;
+  italic?: boolean;
+  code?: boolean;
+  strikethrough?: boolean;
+};
+
+export type Block =
+  | { type: "heading"; level: 1 | 2 | 3; text: string; runs?: Run[] }
+  | { type: "paragraph"; text: string; runs?: Run[] }
+  | { type: "bulleted_item"; text: string; runs?: Run[] }
+  | { type: "numbered_item"; text: string; runs?: Run[] }
+  | { type: "todo"; text: string; checked: boolean; runs?: Run[] }
+  | { type: "toggle"; text: string; children: Block[]; runs?: Run[] }
+  | { type: "callout"; text: string; emoji?: string; runs?: Run[] }
+  | { type: "quote"; text: string; runs?: Run[] }
+  | { type: "code"; language?: string; text: string }
+  | { type: "image"; url: string; caption?: string; href?: string }
+  | { type: "bookmark"; url: string; title?: string }
+  | { type: "page_link"; pageId: string; title: string; slug?: string }
+  | { type: "file"; url: string; name?: string; caption?: string }
+  | { type: "divider" };
+
+export type PageSummary = {
+  id: string;
+  notion_page_id?: string;
+  parent_page_id?: string | null;
+  title: string;
+  slug: string;
+  icon: string | null;
+  cover?: string | null;
+  is_hidden?: boolean;
+  updated_at?: string;
+};
+
+export type PageDetail = PageSummary & {
+  content: { blocks?: Block[] } | Block[] | null;
+  url?: string | null;
+};
+
+type PagesResponse = { pages: PageSummary[] };
+type PageResponse = { page: PageDetail };
+
+export async function fetchPages(): Promise<PageSummary[]> {
+  const r = await request<PagesResponse>("/api/pages");
+  return r.pages ?? [];
+}
+
+export async function fetchPage(slug: string): Promise<PageDetail> {
+  const r = await request<PageResponse>(
+    `/api/pages?slug=${encodeURIComponent(slug)}`
+  );
+  return r.page;
+}
+
+/** Normalizes the `content` field into a Block[] regardless of shape. */
+export function readBlocks(page: PageDetail): Block[] {
+  const c = page.content;
+  if (Array.isArray(c)) return c;
+  return c?.blocks ?? [];
 }

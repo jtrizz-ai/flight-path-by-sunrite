@@ -53,10 +53,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="schedule"
+        name="library"
         options={{
-          title: "Schedule",
-          tabBarIcon: ({ color }) => <Ionicons name="calendar" size={24} color={color} />,
+          title: "Library",
+          tabBarIcon: ({ color }) => <Ionicons name="book" size={24} color={color} />,
         }}
       />
       <Tabs.Screen

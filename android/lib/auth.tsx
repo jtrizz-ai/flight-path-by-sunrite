@@ -25,6 +25,7 @@ type AuthState = {
   error: string | null;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
+  setUser: (u: UserProfile | null) => void;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -126,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, signingIn, error, signIn, signOut }}
+      value={{ user, loading, signingIn, error, signIn, signOut, setUser }}
     >
       {children}
     </AuthContext.Provider>

@@ -107,6 +107,11 @@ export default function SettingsScreen() {
                   </Text>
                   <Text style={styles.accountEmail}>{user.email}</Text>
                 </View>
+                <Link href="/profile" asChild>
+                  <Pressable style={styles.editBtn}>
+                    <Text style={styles.editBtnText}>Edit</Text>
+                  </Pressable>
+                </Link>
                 <Pressable style={styles.signOutBtn} onPress={signOut}>
                   <Text style={styles.signOutText}>Sign Out</Text>
                 </Pressable>
@@ -239,6 +244,20 @@ const styles = StyleSheet.create({
   },
   signOutText: {
     color: colors.accent,
+    fontFamily: fonts.monoBold,
+    fontSize: 11,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  editBtn: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  editBtnText: {
+    color: colors.ink2,
     fontFamily: fonts.monoBold,
     fontSize: 11,
     letterSpacing: 1,

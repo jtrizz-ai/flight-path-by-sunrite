@@ -2,7 +2,7 @@
 
 A private, login-protected publishing layer over a Notion wiki — like
 Super.so, but as our own app, skinned with the Azurio dark-editorial design.
-Two front ends (website + iOS app) share one Next.js backend.
+Three front ends (website + iOS app + Android app) share one Next.js backend.
 
 Notion is the source of truth. The backend crawls the "Flight Path Program"
 wiki and every sub-page into a cached site tree. The front ends render that
@@ -18,6 +18,7 @@ from the published content.
 flight-path-by-sunrite/
 ├── web/              # Next.js: website + admin portal + JSON API
 ├── ios/              # SwiftUI iOS app (iOS 17+)
+├── android/          # Expo + React Native Android app (see android/README.md)
 ├── node-worker/      # Notion crawler (writes to Postgres)
 ├── db/               # SQL schema + migrations
 ├── docs/             # Specs, plans, design notes
@@ -31,6 +32,9 @@ flight-path-by-sunrite/
 - **ios/** — SwiftUI, iOS 17+. Native URLSession async networking. Google
   Sign-In SDK exchanges a Google ID token for a backend bearer token via
   `/api/auth/exchange`. Renders the same site tree + chat.
+- **android/** — Expo + React Native + TypeScript (Expo Router). Same Google
+  Sign-In → `/api/auth/exchange` flow and the same JSON API. Mirrors the iOS
+  feature set. Setup details in `android/README.md`.
 - **node-worker/** — Node.js + TypeScript. Recursively crawls the Notion wiki,
   applies the "Hidden Pages" toggle rule, extracts searchable text, and writes
   pages to Postgres. Runs on demand (no daemon in v1).
@@ -45,7 +49,7 @@ flight-path-by-sunrite/
 2. **Docker** (to run Postgres locally) OR a Supabase/Neon Postgres URL
 3. **Google OAuth credentials** (for sign-in)
 4. **Notion integration token** + the root wiki page ID
-5. **Xcode 16+** (iOS app only)
+5. **Xcode 16+** (iOS app) **or Android Studio** (Android app) — only the one you'll run
 6. **A local LLM** (LM Studio or Ollama, OpenAI-compatible endpoint) for chat
 
 ---
