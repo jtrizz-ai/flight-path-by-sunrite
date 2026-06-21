@@ -7,7 +7,8 @@ loadEnv()
 // Environment variable schema with validation.
 //
 // NOTE: This previously required Supabase URL + service key. We now talk to the
-// LOCAL Postgres container (repo-root docker-compose.yml) via DATABASE_URL only.
+// REMOTE Postgres cluster on the trashcan (100.117.75.7:5432) over Tailscale,
+// via DATABASE_URL only.
 const envSchema = z.object({
   // Notion Configuration
   NOTION_API_KEY: z.string().min(1, 'NOTION_API_KEY is required'),
@@ -15,10 +16,10 @@ const envSchema = z.object({
     .string()
     .min(1, 'NOTION_ROOT_PAGE_ID is required (the Flight Path Program wiki id)'),
 
-  // Database (local Postgres). Must match the repo-root .env.
+  // Remote Postgres on the trashcan. Must match web/.env.
   DATABASE_URL: z
     .string()
-    .min(1, 'DATABASE_URL is required (e.g. postgres://flightpath:pw@localhost:5433/flightpath)'),
+    .min(1, 'DATABASE_URL is required (e.g. postgres://flightpath_user:pw@100.117.75.7:5432/flightpath?sslmode=disable)'),
 
   // Worker Configuration
   WORKER_MODE: z.enum(['schedule', 'manual', 'cron']).default('schedule'),

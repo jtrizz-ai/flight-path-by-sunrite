@@ -46,7 +46,8 @@ flight-path-by-sunrite/
 ## Prerequisites
 
 1. **Node.js** v20+ and npm
-2. **Docker** (to run Postgres locally) OR a Supabase/Neon Postgres URL
+2. **A Tailscale connection** to the trashcan Mac Pro (`100.117.75.7`) — that
+   is where the shared Postgres 16 lives. No local database is required.
 3. **Google OAuth credentials** (for sign-in)
 4. **Notion integration token** + the root wiki page ID
 5. **Xcode 16+** (iOS app) **or Android Studio** (Android app) — only the one you'll run
@@ -56,24 +57,27 @@ flight-path-by-sunrite/
 
 ## Setup
 
-### 1. Start Postgres
+### 1. Connect to Postgres (remote, on the trashcan over Tailscale)
 
-Local Docker (recommended for development):
+Postgres is hosted on the trashcan Mac Pro at `100.117.75.7:5432` and reached
+over Tailscale. The `flightpath` database + `flightpath_user` role already
+exist there; the connection string is stored in `web/.env` and
+`node-worker/.env` (password in 1Password as
+"Flight Path DB user (trashcan)").
+
+Verify you can reach it from your dev machine:
 
 ```bash
-docker compose up -d        # starts flightpath-postgres on port 5433
+# Requires being on Tailscale. Should print "5 pages, 27 chats, 1 user".
+docker run --rm postgres:16-alpine \
+  psql "postgres://flightpath_user:PASSWORD@100.117.75.7:5432/flightpath?sslmode=disable" \
+  -c "SELECT count(*) FROM notion_pages;"
 ```
 
-Apply the schema + migrations:
-
-```bash
-psql postgres://flightpath:flightpath@localhost:5433/flightpath \
-  -f db/init/01-schema.sql \
-  -f db/migrations/002-chat-and-profile.sql
-```
-
-> If you already ran `01-schema.sql` before, only run the migration files
-> after it in numeric order.
+The schema, migrations, and seed data were applied once during the initial
+cutover — you do **not** run `01-schema.sql` on a new dev machine. To apply
+future migrations, run them against the remote (ask the admin or see
+`db/migrations/`).
 
 ### 2. Create Google OAuth credentials
 
@@ -195,8 +199,10 @@ npm start            # run compiled worker
   work — build from the Xcode GUI.
 
 ### Database
-- Connect: `psql postgres://flightpath:flightpath@localhost:5433/flightpath`
-- Apply new migrations in numeric order from `db/migrations/`
+- Connect: `psql postgres://flightpath_user:PASSWORD@100.117.75.7:5432/flightpath?sslmode=disable`
+  (requires Tailscale; password in 1Password)
+- Apply new migrations in numeric order from `db/migrations/` against the
+  remote trashcan cluster.
 
 ---
 
@@ -261,7 +267,11 @@ Run on the same machine as Postgres, on demand or via cron.
 ## Troubleshooting
 
 **"Database connection error"**
-- Check `DATABASE_URL` in `web/.env`. Local Docker: port 5433, not 5432.
+- Confirm Tailscale is connected and you can reach `100.117.75.7:5432`
+  (`nc -zv 100.117.75.7 5432`).
+- Check `DATABASE_URL` in `web/.env` (and `node-worker/.env`). Host must be
+  `100.117.75.7`, port `5432`, with `?sslmode=disable` because TLS is handled
+  by Tailscale at the transport layer.
 
 **"Google sign-in loops / ACCESS_DENIED"**
 - The email's domain is not in `allowed_domains`, or `INVITE_REQUIRED=true`
