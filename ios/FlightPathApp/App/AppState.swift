@@ -31,6 +31,7 @@ final class AppState: ObservableObject {
 
     // Chat
     @Published var messages: [ChatMessage] = []
+    @Published var chatHistory: [ChatMessage] = []
     @Published var isTyping = false
 
     // Auth + profile
@@ -114,6 +115,7 @@ final class AppState: ObservableObject {
         user = nil
         isAuthenticated = false
         messages = []
+        chatHistory = []
         badges = []
         doors = 0
         conversations = 0
@@ -185,7 +187,7 @@ final class AppState: ObservableObject {
     func loadChatHistory() async {
         do {
             let thread = try await api.fetchChatThread()
-            messages = thread.messages.map { m in
+            chatHistory = thread.messages.map { m in
                 ChatMessage(
                     id: UUID(uuidString: m.id) ?? UUID(),
                     role: m.role == "user" ? .me : .ai,
@@ -194,8 +196,12 @@ final class AppState: ObservableObject {
                 )
             }
         } catch {
-            // Leave messages empty on failure; user can still send new ones.
+            // Leave history empty on failure; user can still send new messages.
         }
+    }
+
+    func startNewChat() {
+        messages = []
     }
 
     func send(_ text: String) {
@@ -225,6 +231,9 @@ final class AppState: ObservableObject {
     }
 
     func select(_ newTab: AppTab) {
+        if newTab == .chat && tab != .chat {
+            startNewChat()
+        }
         withAnimation(.easeInOut(duration: 0.22)) {
             tab = newTab
         }
