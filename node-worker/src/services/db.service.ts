@@ -1,6 +1,7 @@
 import pg from 'pg'
 import { config } from '../config'
 import { NotionPage } from './notion.service'
+import { blocksToSearchText } from './searchText'
 
 const { Pool } = pg
 
@@ -85,8 +86,8 @@ export class DatabaseService {
     await this.pool.query(
       `INSERT INTO notion_pages
          (notion_page_id, parent_page_id, child_ids, title, slug,
-          icon, cover, url, tags, is_hidden, content)
-       VALUES ($1, $2, $3::text[], $4, $5, $6, $7, $8, $9::text[], $10, $11)`,
+          icon, cover, url, tags, is_hidden, content, search_text)
+       VALUES ($1, $2, $3::text[], $4, $5, $6, $7, $8, $9::text[], $10, $11, $12)`,
       [
         page.id,
         page.parent_id,
@@ -99,6 +100,7 @@ export class DatabaseService {
         [], // TODO: extract Tags multi-select in notion.service.ts (spec section 11)
         Boolean(page.is_hidden),
         page.content,
+        blocksToSearchText(page.content.blocks),
       ]
     )
     console.log(`✅ Created page: ${page.title} (${slug})`)
@@ -116,6 +118,7 @@ export class DatabaseService {
           url            = $7,
           is_hidden      = $8,
           content        = $9,
+          search_text    = $10,
           last_synced_at = NOW()
         WHERE notion_page_id = $1`,
       [
@@ -128,6 +131,7 @@ export class DatabaseService {
         page.url,
         Boolean(page.is_hidden),
         page.content,
+        blocksToSearchText(page.content.blocks),
       ]
     )
     console.log(`🔄 Updated page: ${page.title}`)

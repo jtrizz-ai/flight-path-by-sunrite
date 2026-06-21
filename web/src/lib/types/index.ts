@@ -18,8 +18,34 @@ export interface AppUser {
   status: UserStatus;
   phone: string | null;
   town: string | null;
+  region: string | null;
+  team: string | null;
+  hire_date: string | null;
+  app_open_count: number;
+  last_app_open_at: string | null;
   created_at: string;
   last_active_at: string;
+}
+
+export interface Badge {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  is_quarterly: boolean;
+  display_order: number;
+}
+
+export interface UserBadge {
+  id: string;
+  user_id: string;
+  badge_id: string;
+  badge: Badge;
+  quarter: number | null;
+  year: number | null;
+  awarded_by: string | null;
+  awarded_at: string;
+  notes: string | null;
 }
 
 // One crawled Notion page (see db/init/01-schema.sql -> notion_pages).
@@ -92,3 +118,54 @@ export type Block =
   | { type: "page_link"; pageId: string; title: string; slug?: string }
   | { type: "file"; url: string; name?: string; caption?: string }
   | { type: "divider" };
+
+// ─────────────────────────────────────────────────────────────────────────
+// Profile + chat types (spec section 6: data shapes).
+// Used by /api/me, /api/profile, /api/chat/*, and the iOS client mirror.
+// ─────────────────────────────────────────────────────────────────────────
+
+export type UserProfile = {
+  id: string;
+  email: string;
+  fullName: string;
+  avatarUrl: string | null;
+  phone: string | null;
+  town: string | null;
+  region: string | null;
+  team: string | null;
+  hireDate: string | null; // ISO date YYYY-MM-DD
+  role: UserRole;
+  status: UserStatus;
+};
+
+/** All-optional shape for PATCH /api/profile. */
+export type UserProfilePatch = {
+  fullName?: string;
+  avatarUrl?: string | null;
+  phone?: string | null;
+  town?: string | null;
+  hireDate?: string | null;
+};
+
+export type ChatSource = {
+  pageId: string;
+  title: string;
+  slug: string;
+  snippet: string;
+};
+
+export type ChatMessageRecord = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  sources: ChatSource[] | null;
+  createdAt: string; // ISO
+};
+
+export type ChatThread = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: ChatMessageRecord[];
+};

@@ -1,4 +1,5 @@
 import SwiftUI
+import GoogleSignIn
 
 // MARK: - App navigation tabs
 
@@ -14,42 +15,228 @@ final class AppState: ObservableObject {
     @Published var tab: AppTab = .home
     @Published var drawerOpen = false
 
-    // Tally counters
+    // Tally counters (persisted to backend)
     @Published var doors = 0
     @Published var conversations = 0
     @Published var appointments = 0
+    @Published var tallyLoaded = false
 
     // Goals (mirrors the design's data-goal attributes)
     let doorsGoal = 40
     let conversationsGoal = 15
     let appointmentsGoal = 5
 
-    // Chat
-    @Published var messages: [ChatMessage] = ChatMessage.samples
+    // Badges
+    @Published var badges: [EarnedBadge] = []
 
-    // Profile (static for this build — wired to backend later)
-    let userName = "Jonathan Rizzo"
-    let userEmail = "jrizzo@sunritesolarllc.com"
+    // Chat
+    @Published var messages: [ChatMessage] = []
+    @Published var chatHistory: [ChatMessage] = []
+    @Published var isTyping = false
+
+    // Auth + profile
+    @Published var isAuthenticated = false   // NO MORE DEV BYPASS
+    @Published var isSigningIn = false
+    @Published var user: UserProfile?
+    @Published var signInError: String?
+
     var userInitials: String {
-        userName.split(separator: " ").compactMap { $0.first }.prefix(2).map(String.init).joined()
+        let name = user?.fullName ?? ""
+        return name.split(separator: " ")
+            .compactMap { $0.first }
+            .prefix(2)
+            .map(String.init)
+            .joined()
+            .uppercased()
+    }
+    /// Used by AppHeader + SideDrawer before user profile loads.
+    var displayUserName: String { user?.fullName ?? "—" }
+    var displayUserEmail: String { user?.email ?? "" }
+
+    private let api = APIClient.shared
+
+    // ── Auth ────────────────────────────────────────────────────────────
+
+    func signInWithGoogle() async {
+        isSigningIn = true
+        signInError = nil
+        defer { isSigningIn = false }
+
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootVC = windowScene.windows.first(where: \.isKeyWindow)?.rootViewController
+        else {
+            signInError = "Could not find the sign-in window."
+            return
+        }
+
+        do {
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootVC)
+            guard let idToken = result.user.idToken?.tokenString else {
+                signInError = "Google did not return an ID token."
+                return
+            }
+            let exchange = try await api.exchangeToken(googleIdToken: idToken)
+            KeychainStore.save(token: exchange.token)
+            user = exchange.user
+            isAuthenticated = true
+            await onAuthenticated()
+        } catch APIError.http(403, _) {
+            signInError = "Your email isn't on the allowlist."
+        } catch APIError.http(401, _) {
+            signInError = "Google sign-in could not be verified."
+        } catch APIError.network(_) {
+            signInError = "Could not reach the backend. Check Settings → Backend URL."
+        } catch {
+            // User-cancelled Google sign-in lands here silently — don't surface as error.
+        }
     }
 
-    func select(_ newTab: AppTab) {
-        withAnimation(.easeInOut(duration: 0.22)) {
-            tab = newTab
+    func restorePreviousSignIn() async {
+        // Only restore if we have a backend token AND Google can restore prior sign-in.
+        guard KeychainStore.loadToken() != nil,
+              GIDSignIn.sharedInstance.hasPreviousSignIn() else { return }
+        do {
+            try await GIDSignIn.sharedInstance.restorePreviousSignIn()
+            user = try? await api.fetchMe()
+            if user != nil {
+                isAuthenticated = true
+                await onAuthenticated()
+            } else {
+                KeychainStore.clear()
+            }
+        } catch {
+            KeychainStore.clear()
         }
+    }
+
+    func signOut() async {
+        await api.signOut()
+        GIDSignIn.sharedInstance.signOut()
+        user = nil
+        isAuthenticated = false
+        messages = []
+        chatHistory = []
+        badges = []
+        doors = 0
+        conversations = 0
+        appointments = 0
+        tallyLoaded = false
+    }
+
+    // ── Post-authentication bootstrap ──────────────────────────────────
+
+    /// Called after successful sign-in or restore. Loads chat history,
+    /// tally totals, badges, and tracks the app open.
+    private func onAuthenticated() async {
+        await loadChatHistory()
+        await loadTally()
+        await loadBadges()
+        api.trackAppOpen()
+    }
+
+    // ── Tally (persisted) ──────────────────────────────────────────────
+
+    func loadTally() async {
+        do {
+            let totals = try await api.fetchTally()
+            doors = totals.doors
+            conversations = totals.conversations
+            appointments = totals.appointments
+        } catch { /* leave zeros */ }
+        tallyLoaded = true
+    }
+
+    /// Increment a metric and persist to the backend. Optimistic update
+    /// with revert on failure.
+    func incrementTally(metric: String, delta: Int) {
+        switch metric {
+        case "doors":
+            doors = max(0, doors + delta)
+        case "conversations":
+            conversations = max(0, conversations + delta)
+        case "appointments":
+            appointments = max(0, appointments + delta)
+        default: return
+        }
+        let prevDoors = doors, prevConv = conversations, prevAppt = appointments
+        Task {
+            do {
+                let totals = try await api.incrementTally(metric: metric, amount: delta)
+                doors = totals.doors
+                conversations = totals.conversations
+                appointments = totals.appointments
+            } catch {
+                // Revert
+                doors = prevDoors
+                conversations = prevConv
+                appointments = prevAppt
+            }
+        }
+    }
+
+    // ── Badges ─────────────────────────────────────────────────────────
+
+    func loadBadges() async {
+        do {
+            badges = try await api.fetchBadges()
+        } catch { /* leave empty */ }
+    }
+
+    // ── Chat ────────────────────────────────────────────────────────────
+
+    func loadChatHistory() async {
+        do {
+            let thread = try await api.fetchChatThread()
+            chatHistory = thread.messages.map { m in
+                ChatMessage(
+                    id: UUID(uuidString: m.id) ?? UUID(),
+                    role: m.role == "user" ? .me : .ai,
+                    text: m.content,
+                    sources: m.sources
+                )
+            }
+        } catch {
+            // Leave history empty on failure; user can still send new messages.
+        }
+    }
+
+    func startNewChat() {
+        messages = []
     }
 
     func send(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        messages.append(ChatMessage(role: .me, text: trimmed))
-        // Placeholder assistant reply (live app answers from Flight Path content).
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.messages.append(ChatMessage(
-                role: .ai,
-                text: "Thanks! This is a preview of the Flight Path assistant. In the live app it answers from your Flight Path Program content."
-            ))
+        messages.append(ChatMessage(id: UUID(), role: .me, text: trimmed, sources: nil))
+        isTyping = true
+        Task {
+            do {
+                let resp = try await api.sendChat(message: trimmed)
+                messages.append(ChatMessage(
+                    id: UUID(),
+                    role: .ai,
+                    text: resp.answer,
+                    sources: resp.sources
+                ))
+            } catch {
+                messages.append(ChatMessage(
+                    id: UUID(),
+                    role: .ai,
+                    text: "Sorry — I couldn't reach the Flight Path assistant. Try again in a moment.",
+                    sources: nil
+                ))
+            }
+            isTyping = false
         }
+    }
+
+    func select(_ newTab: AppTab) {
+        if newTab == .chat && tab != .chat {
+            startNewChat()
+        }
+        withAnimation(.easeInOut(duration: 0.22)) {
+            tab = newTab
+        }
+        api.trackPageView(path: "/flight-path?tab=\(newTab.rawValue)", title: newTab.rawValue)
     }
 }

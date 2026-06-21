@@ -55,22 +55,29 @@ struct ViewBackground: View {
     let imageName: String
 
     var body: some View {
-        ZStack {
-            Color.fpBG
-            Image(imageName)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-            // .vbg-scrim gradient
-            LinearGradient(
-                stops: [
-                    .init(color: Color.fpBG.opacity(0.80), location: 0.0),
-                    .init(color: Color.fpBG.opacity(0.72), location: 0.38),
-                    .init(color: Color.fpBG.opacity(0.88), location: 1.0)
-                ],
-                startPoint: .top, endPoint: .bottom
+        // Color is the layout anchor — it reports exactly the proposed size.
+        // The image and scrim are overlays so they never inflate the layout width
+        // (an Image with .fill in a ZStack reports its scaled-up size, which
+        // causes parent containers to grow wider than the screen).
+        Color.fpBG
+            .overlay(
+                Image(imageName)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .clipped()
             )
-        }
-        .clipped()
+            .overlay(
+                LinearGradient(
+                    stops: [
+                        .init(color: Color.fpBG.opacity(0.80), location: 0.0),
+                        .init(color: Color.fpBG.opacity(0.72), location: 0.38),
+                        .init(color: Color.fpBG.opacity(0.88), location: 1.0)
+                    ],
+                    startPoint: .top, endPoint: .bottom
+                )
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
     }
 }
 

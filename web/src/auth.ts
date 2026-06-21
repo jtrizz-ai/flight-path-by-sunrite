@@ -71,24 +71,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return true;
     },
 
-    // ── FIRST SIGN-IN ONLY ──────────────────────────────────────────────
-    // `account`/`profile` are present only on the initial OAuth exchange, so
-    // the DB lookup happens once and is then cached in the JWT.
-    // Phase 1: Updated to use the new UserRole type
+    // ── JWT: refresh uid + role from DB on every call ──────────────────
+    // Originally this only ran on first sign-in (when account/profile are
+    // present), which meant role changes by an admin didn't take effect
+    // until the user signed out and back in. Now we always query so admin
+    // role/status changes propagate immediately.
     async jwt({ token, account, profile }) {
       const t = token as AppJWT;
-      if (account && profile) {
-        const email = (profile as { email?: string })?.email?.toLowerCase();
-        if (email) {
-          const { rows } = await query<{ id: string; role: UserRole }>(
-            `SELECT id, role FROM app_users WHERE lower(email) = $1 LIMIT 1`,
-            [email]
-          );
-          if (rows[0]) {
-            t.uid = rows[0].id;
-            t.role = rows[0].role;
-          }
+      const email =
+        (profile as { email?: string })?.email?.toLowerCase() ??
+        (t.email as string | undefined)?.toLowerCase();
+
+      if (!email) return token;
+
+      try {
+        const { rows } = await query<{ id: string; role: UserRole }>(
+          `SELECT id, role FROM app_users WHERE lower(email) = $1 LIMIT 1`,
+          [email]
+        );
+        if (rows[0]) {
+          t.uid = rows[0].id;
+          t.role = rows[0].role;
         }
+      } catch {
+        // DB error — keep existing token values
       }
       return token;
     },

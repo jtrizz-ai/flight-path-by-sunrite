@@ -1,15 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import { ViewHeader, ViewBackground, Card } from './SharedUI';
+import type { ContentPageSummary } from './FlightPathApp';
 
-const modules = [
-  { id: '01', title: 'Flight Path Schedule', subtitle: 'Onboarding · Week 1' },
-  { id: '02', title: 'RepCard Territory Management', subtitle: 'Tools · Door to Door' },
-  { id: '03', title: 'The Door Pitch', subtitle: 'Sales · Script' },
-  { id: '04', title: 'Recommended Reading & Content', subtitle: 'Resources · Library' },
-];
-
-export function ScheduleView() {
+export function ScheduleView({ pages }: { pages: ContentPageSummary[] }) {
   return (
     <div className="absolute inset-0 overflow-hidden">
       <ViewBackground imageName="schedule_bg.png" />
@@ -18,53 +13,58 @@ export function ScheduleView() {
         <ViewHeader
           eyebrow="SunRite Solar"
           title="Schedule"
-          subtitle="Flight Path Program · 4 modules"
+          subtitle={pages.length > 0 ? `Flight Path Program · ${pages.length} modules` : 'Flight Path Program'}
         />
 
-        <div className="flex flex-col gap-2.5 max-w-3xl">
-          {modules.map((module) => (
-            <button
-              key={module.id}
-              className="group w-full hover:opacity-90 transition-opacity"
+        {pages.length === 0 ? (
+          <Card className="max-w-3xl px-5 py-8 text-center">
+            <div
+              className="font-[var(--font-fp-mono)] text-[11px] tracking-[0.1em]"
+              style={{ color: 'var(--color-fp-ink-3)' }}
             >
-              <Card className="flex items-center gap-3.5 px-4 py-4">
-                <div
-                  className="font-[var(--font-fp-mono)] text-[11px] font-bold w-6 shrink-0"
-                  style={{ color: 'var(--color-fp-accent-2)' }}
-                >
-                  {module.id}
-                </div>
-
-                <div className="flex-1 text-left min-w-0">
-                  <div className="font-bold text-[14.5px] text-[var(--color-fp-ink)] leading-tight">
-                    {module.title}
-                  </div>
+              No content published yet. Run the Notion crawler to populate this view.
+            </div>
+          </Card>
+        ) : (
+          <div className="flex flex-col gap-2.5 max-w-3xl">
+            {pages.map((page, index) => (
+              <Link key={page.slug} href={`/pages/${page.slug}`} className="group block">
+                <Card className="flex items-center gap-3.5 px-4 py-4 transition-all duration-200 group-hover:brightness-125">
                   <div
-                    className="font-[var(--font-fp-mono)] text-[10px] tracking-[0.12em] uppercase mt-1"
+                    className="font-[var(--font-fp-mono)] text-[11px] font-bold w-6 shrink-0"
+                    style={{ color: 'var(--color-fp-accent-2)' }}
+                  >
+                    {String(index + 1).padStart(2, '0')}
+                  </div>
+
+                  <div className="flex-1 text-left min-w-0 flex items-center gap-2">
+                    {page.icon && <span className="text-lg shrink-0">{page.icon}</span>}
+                    <div>
+                      <div className="font-bold text-[14.5px] text-[var(--color-fp-ink)] leading-tight">
+                        {page.title}
+                      </div>
+                    </div>
+                  </div>
+
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="shrink-0"
                     style={{ color: 'var(--color-fp-ink-3)' }}
                   >
-                    {module.subtitle}
-                  </div>
-                </div>
-
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="shrink-0"
-                  style={{ color: 'var(--color-fp-ink-3)' }}
-                >
-                  <path d="M9 6l6 6-6 6" />
-                </svg>
-              </Card>
-            </button>
-          ))}
-        </div>
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

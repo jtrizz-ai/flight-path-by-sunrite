@@ -25,7 +25,12 @@ export async function PATCH(
 
   try {
     const body = await request.json();
-    const { role, status } = body as { role?: UserRole; status?: UserStatus };
+    const { role, status, region, team } = body as {
+      role?: UserRole;
+      status?: UserStatus;
+      region?: string | null;
+      team?: string | null;
+    };
     const { id: userId } = await params;
 
     // Validate inputs
@@ -42,7 +47,7 @@ export async function PATCH(
 
     // Build dynamic update query
     const updates: string[] = [];
-    const values: (string | UserRole | UserStatus)[] = [];
+    const values: (string | UserRole | UserStatus | null)[] = [];
     let paramIndex = 1;
 
     if (role) {
@@ -53,6 +58,16 @@ export async function PATCH(
     if (status) {
       updates.push(`status = $${paramIndex++}`);
       values.push(status);
+    }
+
+    if (region !== undefined) {
+      updates.push(`region = $${paramIndex++}`);
+      values.push(region || null);
+    }
+
+    if (team !== undefined) {
+      updates.push(`team = $${paramIndex++}`);
+      values.push(team || null);
     }
 
     if (updates.length === 0) {
@@ -66,7 +81,7 @@ export async function PATCH(
       `UPDATE app_users
        SET ${updates.join(", ")}
        WHERE id = $${paramIndex}
-       RETURNING id, email, full_name, avatar_url, role, status, phone, town, created_at, last_active_at`,
+       RETURNING id, email, full_name, avatar_url, role, status, phone, town, region, team, hire_date, created_at, last_active_at`,
       values
     );
 

@@ -12,19 +12,10 @@ import type { UserRole } from "@/lib/types";
  * Type guard: narrows session to non-null when returns true.
  */
 export function isAdmin(session: Session | null): session is Session {
-  console.log(`[isAdmin] Checking session:`, {
-    hasSession: !!session,
-    hasUser: !!session?.user,
-    role: session?.user?.role,
-    email: session?.user?.email,
-  });
   if (!session?.user?.role) {
-    console.log(`[isAdmin] No session or role, returning false`);
     return false;
   }
-  const result = session.user.role === "Admin";
-  console.log(`[isAdmin] Role check result:`, result);
-  return result;
+  return session.user.role === "Admin";
 }
 
 /**

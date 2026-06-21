@@ -13,8 +13,8 @@ struct TabBar: View {
 
     private let items: [Item] = [
         .init(tab: .schedule, label: "SCHEDULE", systemImage: "calendar"),
-        .init(tab: .tally, label: "TALLY", systemImage: "chart.bar"),
-        .init(tab: .chat, label: "CHAT", systemImage: "bubble.left")
+        .init(tab: .tally,    label: "TALLY",    systemImage: "chart.bar"),
+        .init(tab: .chat,     label: "CHAT",     systemImage: "bubble.left")
     ]
 
     var body: some View {
@@ -42,11 +42,10 @@ struct TabBar: View {
         .padding(.horizontal, 10)
         .padding(.top, 8)
         .padding(.bottom, 6)
-        .background(
-            Color(hex: "08080A").opacity(0.92)
-                .background(.ultraThinMaterial)
-                .ignoresSafeArea(edges: .bottom)
-        )
+        // Two-argument form correctly extends the material through the home indicator safe area.
+        // Chaining .ignoresSafeArea() inside a .background() argument is unreliable in a VStack.
+        .background(Color(hex: "08080A").opacity(0.92), ignoresSafeAreaEdges: .bottom)
+        .background(.ultraThinMaterial, ignoresSafeAreaEdges: .bottom)
         .overlay(alignment: .top) {
             Rectangle().fill(Color.line).frame(height: 1)
         }

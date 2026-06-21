@@ -1,13 +1,34 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { LaunchLights } from './LaunchLights';
 
+type EarnedBadge = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  is_quarterly: boolean;
+  quarter: number | null;
+  year: number | null;
+  awarded_at: string;
+};
+
 export function HomeView({ userName }: { userName: string }) {
+  const [badges, setBadges] = useState<EarnedBadge[]>([]);
+
+  useEffect(() => {
+    fetch('/api/me/badges', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setBadges(d.badges || []))
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="absolute inset-0 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0" style={{ backgroundColor: 'var(--color-fp-bg)' }} />
-      
+
       {/* Cinematic image */}
       <img
         src="/images/home_scene.png"
@@ -48,6 +69,39 @@ export function HomeView({ userName }: { userName: string }) {
             FLIGHT PATH
           </h1>
         </div>
+
+        {/* Badge display — appears between wordmark and welcome line */}
+        {badges.length > 0 && (
+          <div className="flex flex-wrap items-center justify-center gap-2 max-w-md pointer-events-auto">
+            {badges.map((badge) => (
+              <div
+                key={badge.id + (badge.quarter ?? '') + (badge.year ?? '')}
+                className="flex flex-col items-center rounded-[14px] px-4 py-2.5"
+                style={{
+                  backgroundColor: 'rgba(232,71,42,0.08)',
+                  border: '1px solid rgba(232,71,42,0.3)',
+                  backdropFilter: 'blur(8px)',
+                  WebkitBackdropFilter: 'blur(8px)',
+                }}
+              >
+                <div
+                  className="font-[var(--font-fp-display)] text-[13px] uppercase leading-tight tracking-[0.02em]"
+                  style={{ color: 'var(--color-fp-ink)' }}
+                >
+                  {badge.name}
+                </div>
+                {badge.is_quarterly && (badge.quarter || badge.year) && (
+                  <div
+                    className="font-[var(--font-fp-mono)] text-[8px] tracking-[0.15em] uppercase mt-0.5"
+                    style={{ color: 'var(--color-fp-accent-2)' }}
+                  >
+                    {badge.quarter ? `Q${badge.quarter}` : ''} {badge.year ?? ''}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         <div
           className="font-[var(--font-fp-mono)] text-[11px] tracking-[0.14em] uppercase text-center max-w-md"

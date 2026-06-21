@@ -7,7 +7,7 @@ struct AppHeader: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Brand → Home
+            // Brand → Home (protected from compression)
             Button {
                 app.select(.home)
             } label: {
@@ -26,22 +26,26 @@ struct AppHeader: View {
                 }
             }
             .buttonStyle(.plain)
+            .layoutPriority(1)
 
             Spacer(minLength: 8)
 
-            // Welcome + username
+            // Welcome + username (compresses first on narrow screens)
             VStack(alignment: .trailing, spacing: 1) {
                 Text("Welcome")
                     .font(FPFont.mono(11))
                     .tracking(0.4)
                     .foregroundColor(.ink2)
-                Text(app.userName)
+                    .lineLimit(1)
+                Text(app.displayUserName)
                     .font(FPFont.mono(11, .bold))
                     .tracking(0.2)
                     .foregroundColor(.ink)
+                    .lineLimit(1)
             }
+            .layoutPriority(-1)
 
-            // Hamburger
+            // Hamburger (fixed size, never compresses)
             Button {
                 withAnimation(.easeInOut(duration: 0.3)) { app.drawerOpen = true }
             } label: {
@@ -61,11 +65,10 @@ struct AppHeader: View {
         .padding(.horizontal, 18)
         .padding(.top, 8)
         .padding(.bottom, 12)
-        .background(
-            Color.fpBG.opacity(0.6)
-                .background(.ultraThinMaterial)
-                .ignoresSafeArea(edges: .top)
-        )
+        // Two-argument form correctly extends background through the Dynamic Island / status bar.
+        // Chaining .ignoresSafeArea() inside a .background() argument does NOT work reliably in a VStack.
+        .background(Color.fpBG.opacity(0.6), ignoresSafeAreaEdges: .top)
+        .background(.ultraThinMaterial, ignoresSafeAreaEdges: .top)
         .overlay(alignment: .bottom) {
             Rectangle().fill(Color.line).frame(height: 1)
         }

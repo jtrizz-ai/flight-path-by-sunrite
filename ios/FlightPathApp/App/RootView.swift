@@ -3,38 +3,53 @@ import SwiftUI
 // MARK: - Root shell (header · active view · tab bar · drawer)
 
 struct RootView: View {
-    @StateObject private var app = AppState()
+    @EnvironmentObject var app: AppState
 
     var body: some View {
+        Group {
+            if app.isAuthenticated {
+                mainShell
+            } else {
+                LoginView()
+            }
+        }
+    }
+
+    private var mainShell: some View {
         ZStack {
             Color.fpBG.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 AppHeader()
 
-                ZStack {
-                    switch app.tab {
-                    case .home:     HomeView()
-                    case .schedule: ScheduleView()
-                    case .tally:    TallyView()
-                    case .chat:     ChatView()
+                // GeometryReader pins every tab view to the exact available
+                // pixel rect — the same technique HomeView uses internally.
+                // Without it, flexible layouts on non-Home tabs expand wider
+                // than the screen on certain devices.
+                GeometryReader { geo in
+                    ZStack {
+                        switch app.tab {
+                        case .home:     HomeView()
+                        case .schedule: ScheduleView()
+                        case .tally:    TallyView()
+                        case .chat:     ChatView()
+                        }
                     }
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .clipped()
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
 
                 TabBar()
             }
 
-            // Slide-in drawer sits above everything
             SideDrawer()
         }
-        .environmentObject(app)
     }
 }
 
 #Preview {
     RootView()
+        .environmentObject(AppState())
         .preferredColorScheme(.dark)
         .onAppear { FPFonts.registerAll() }
 }
