@@ -18,10 +18,16 @@ export function ChatView({
   messages,
   onSend,
   isTyping = false,
+  onOpenSidebar,
+  onNewChat,
+  activeThreadTitle,
 }: {
   messages: ChatMessage[];
   onSend: (text: string) => void;
   isTyping?: boolean;
+  onOpenSidebar: () => void;
+  onNewChat: () => void;
+  activeThreadTitle: string | null;
 }) {
   const [draft, setDraft] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -41,6 +47,81 @@ export function ChatView({
 
   return (
     <div className="absolute inset-0 flex flex-col" style={{ backgroundColor: 'var(--color-fp-bg)' }}>
+      {/* Top bar: history + active title + new chat */}
+      <div
+        className="flex items-center gap-2 px-3.5 py-2.5 border-b"
+        style={{
+          borderColor: 'var(--color-fp-line)',
+          backgroundColor: 'rgba(6,6,7,0.6)',
+          backdropFilter: 'blur(12px)',
+        }}
+      >
+        <button
+          onClick={onOpenSidebar}
+          aria-label="Open conversations"
+          className="w-9 h-9 flex items-center justify-center rounded-[8px] transition-colors hover:bg-white/5"
+          style={{ color: 'var(--color-fp-ink-3)', border: '1px solid var(--color-fp-line)' }}
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M3 12h18M3 6h18M3 18h18" />
+          </svg>
+        </button>
+
+        <div className="flex-1 min-w-0 px-1">
+          <div
+            className="font-[var(--font-fp-mono)] text-[9px] tracking-[0.18em] uppercase"
+            style={{ color: 'var(--color-fp-ink-3)' }}
+          >
+            {activeThreadTitle === null ? 'New conversation' : 'Conversation'}
+          </div>
+          <div
+            className="font-[var(--font-fp-sans)] text-[13px] truncate"
+            style={{ color: 'var(--color-fp-ink)' }}
+          >
+            {activeThreadTitle ?? 'Flight Path AI'}
+          </div>
+        </div>
+
+        <button
+          onClick={onNewChat}
+          aria-label="Start new chat"
+          className="flex items-center gap-1.5 h-9 px-3 rounded-[8px] transition-colors hover:bg-white/5"
+          style={{
+            color: activeThreadTitle === null ? '#fff' : 'var(--color-fp-ink-2)',
+            backgroundColor:
+              activeThreadTitle === null ? 'var(--color-fp-accent)' : 'transparent',
+            border:
+              activeThreadTitle === null
+                ? '1px solid var(--color-fp-accent)'
+                : '1px solid var(--color-fp-line)',
+          }}
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          <span className="font-[var(--font-fp-mono)] text-[10px] tracking-[0.14em] uppercase">
+            New chat
+          </span>
+        </button>
+      </div>
+
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5">
         <div className="flex flex-col gap-3 max-w-3xl mx-auto">

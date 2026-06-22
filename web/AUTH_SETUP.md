@@ -5,26 +5,24 @@ Flight Path uses **"Sign in with Google"** as the only way in. Google just prove
 list** and an **allowed-domains list** in the database.
 
 > This replaces the old Supabase login. There is no Supabase anymore — only the
-> local Postgres database (see the repo-root `docker-compose.yml`).
+> shared Postgres cluster on the trashcan (reached over Tailscale).
 
 ---
 
-## Part 1 — Start the database (one time)
+## Part 1 — Make sure you can reach the database
 
-From the **repo root** (`flight_path_by_sunrite/`):
+The Postgres database lives on the **trashcan Mac Pro** at `100.117.75.7:5432`,
+reached over **Tailscale**. There is no local database to start.
 
-```bash
-docker compose up -d
-```
+1. Confirm Tailscale is connected on this Mac.
+2. Confirm you can reach the cluster:
 
-Check it's healthy:
+   ```bash
+   nc -zv 100.117.75.7 5432    # should say "succeeded"
+   ```
 
-```bash
-docker compose ps
-```
-
-You should see `flightpath-postgres` as `healthy`. (Database details and
-passwords live in the repo-root `.env`, which is gitignored.)
+3. `web/.env` already has the working `DATABASE_URL`. (Password is in 1Password
+   as "Flight Path DB user (trashcan)".)
 
 ---
 

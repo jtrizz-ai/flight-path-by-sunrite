@@ -46,7 +46,8 @@ flight-path-by-sunrite/
 ## Prerequisites
 
 1. **Node.js** v20+ and npm
-2. **Docker** (to run Postgres locally) OR a Supabase/Neon Postgres URL
+2. **A Tailscale connection** to the trashcan Mac Pro (`100.117.75.7`) — that
+   is where the shared Postgres 16 lives. No local database is required.
 3. **Google OAuth credentials** (for sign-in)
 4. **Notion integration token** + the root wiki page ID
 5. **Xcode 16+** (iOS app) **or Android Studio** (Android app) — only the one you'll run
@@ -56,24 +57,27 @@ flight-path-by-sunrite/
 
 ## Setup
 
-### 1. Start Postgres
+### 1. Connect to Postgres (remote, on the trashcan over Tailscale)
 
-Local Docker (recommended for development):
+Postgres is hosted on the trashcan Mac Pro at `100.117.75.7:5432` and reached
+over Tailscale. The `flightpath` database + `flightpath_user` role already
+exist there; the connection string is stored in `web/.env` and
+`node-worker/.env` (password in 1Password as
+"Flight Path DB user (trashcan)").
+
+Verify you can reach it from your dev machine:
 
 ```bash
-docker compose up -d        # starts flightpath-postgres on port 5433
+# Requires being on Tailscale. Should print "5 pages, 27 chats, 1 user".
+docker run --rm postgres:16-alpine \
+  psql "postgres://flightpath_user:PASSWORD@100.117.75.7:5432/flightpath?sslmode=disable" \
+  -c "SELECT count(*) FROM notion_pages;"
 ```
 
-Apply the schema + migrations:
-
-```bash
-psql postgres://flightpath:flightpath@localhost:5433/flightpath \
-  -f db/init/01-schema.sql \
-  -f db/migrations/002-chat-and-profile.sql
-```
-
-> If you already ran `01-schema.sql` before, only run the migration files
-> after it in numeric order.
+The schema, migrations, and seed data were applied once during the initial
+cutover — you do **not** run `01-schema.sql` on a new dev machine. To apply
+future migrations, run them against the remote (ask the admin or see
+`db/migrations/`).
 
 ### 2. Create Google OAuth credentials
 
@@ -166,6 +170,18 @@ Notion content changes (there is no auto-sync in v1).
 2. Browse the site tree, open pages, ask chat questions
 3. Edit profile + configure backend URL in Settings
 
+### Chat conversations
+- Each conversation is its own thread. Start a new one with **New chat** in
+  the chat header (web) or top bar (iOS). The conversation is created lazily
+  on your first message, titled automatically from that message.
+- Switch between past conversations from the sidebar (web) or the **CHATS**
+  sheet (iOS). Most-recent floats to the top.
+- Delete a conversation from its row in the sidebar/sheet (hover on web,
+  long-press → Delete on iOS).
+- **Retention:** a conversation auto-clears 45 days after its last message.
+  Continuing it resets the timer. The check runs whenever the conversation
+  list loads, so expired threads never appear even without a scheduled job.
+
 ---
 
 ## Development commands
@@ -195,8 +211,21 @@ npm start            # run compiled worker
   work — build from the Xcode GUI.
 
 ### Database
-- Connect: `psql postgres://flightpath:flightpath@localhost:5433/flightpath`
-- Apply new migrations in numeric order from `db/migrations/`
+- Connect: `psql postgres://flightpath_user:PASSWORD@100.117.75.7:5432/flightpath?sslmode=disable`
+  (requires Tailscale; password in 1Password)
+- Apply new migrations in numeric order from `db/migrations/` against the
+  remote trashcan cluster.
+- **Latest migration — `007-multi-thread-chat.sql`:** adds the composite
+  index `(user_id, updated_at DESC)` for listing conversations, an index on
+  `updated_at` for retention scans, and a `purge_stale_chat_threads(cutoff)`
+  helper. Safe to apply on the existing data — no rows are changed or moved;
+  your current single thread becomes the most-recent conversation in the new
+  list. Apply with:
+  ```bash
+  docker run --rm -i postgres:16-alpine \
+    psql "postgres://flightpath_user:PASSWORD@100.117.75.7:5432/flightpath?sslmode=disable" \
+    < db/migrations/007-multi-thread-chat.sql
+  ```
 
 ---
 
@@ -212,7 +241,8 @@ Key tables (see `db/init/01-schema.sql` + `db/migrations/`):
 | `invites` | Individual invited emails (when `INVITE_REQUIRED=true`) |
 | `admin_settings` | Key/value config (e.g. `llm_config` JSON) |
 | `notion_pages` | Crawled pages (title, slug, blocks, search_text, search_vector) |
-| `chat_messages` | Chat history per user (role, content, sources, created_at) |
+| `chat_messages` | Chat history per thread (role, content, sources, created_at) |
+| `chat_threads` | One row per conversation; multi-thread per user; auto-clears after 45 idle days |
 | `sync_meta` | Last crawl timestamp + page count |
 
 ---
@@ -261,7 +291,11 @@ Run on the same machine as Postgres, on demand or via cron.
 ## Troubleshooting
 
 **"Database connection error"**
-- Check `DATABASE_URL` in `web/.env`. Local Docker: port 5433, not 5432.
+- Confirm Tailscale is connected and you can reach `100.117.75.7:5432`
+  (`nc -zv 100.117.75.7 5432`).
+- Check `DATABASE_URL` in `web/.env` (and `node-worker/.env`). Host must be
+  `100.117.75.7`, port `5432`, with `?sslmode=disable` because TLS is handled
+  by Tailscale at the transport layer.
 
 **"Google sign-in loops / ACCESS_DENIED"**
 - The email's domain is not in `allowed_domains`, or `INVITE_REQUIRED=true`

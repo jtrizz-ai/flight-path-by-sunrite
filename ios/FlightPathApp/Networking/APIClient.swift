@@ -20,7 +20,11 @@ enum APIError: LocalizedError {
 
 // Typed request bodies (avoids dictionary-as-Encodable hacks).
 private struct ExchangeRequest: Encodable { let googleIdToken: String }
-private struct ChatRequestBody: Encodable { let message: String }
+private struct ChatRequestBody: Encodable {
+    let message: String
+    // Omit threadId when starting a new conversation so the backend creates one.
+    let threadId: String?
+}
 private struct TallyRequestBody: Encodable { let metric: String; let amount: Int }
 private struct PageViewBody: Encodable { let path: String; let title: String? }
 private struct MilestoneCheckBody: Encodable {
@@ -116,16 +120,29 @@ final class APIClient {
         return resp.user
     }
 
-    func fetchChatThread() async throws -> ChatThread {
-        let resp: ThreadResponse = try await request(path: "/api/chat/threads")
+    func fetchChatThreads() async throws -> [ChatThreadSummary] {
+        let resp: ChatThreadListResponse = try await request(path: "/api/chat/threads")
+        return resp.threads
+    }
+
+    func fetchChatThread(id: String) async throws -> ChatThread {
+        let resp: ThreadResponse = try await request(path: "/api/chat/threads/\(id)")
         return resp.thread
     }
 
-    func sendChat(message: String) async throws -> ChatResponse {
+    func deleteChatThread(id: String) async throws {
+        struct Empty: Decodable {}
+        _ = try await request(
+            path: "/api/chat/threads/\(id)",
+            method: "DELETE"
+        ) as Empty
+    }
+
+    func sendChat(message: String, threadId: String?) async throws -> ChatResponse {
         try await request(
             path: "/api/chat",
             method: "POST",
-            body: ChatRequestBody(message: message)
+            body: ChatRequestBody(message: message, threadId: threadId)
         )
     }
 

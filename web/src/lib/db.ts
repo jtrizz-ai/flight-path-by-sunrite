@@ -1,7 +1,7 @@
 import { Pool, type QueryResultRow } from "pg";
 
 // ─────────────────────────────────────────────────────────────────────────
-// Postgres connection (LOCAL container from docker-compose.yml).
+// Postgres connection (REMOTE cluster on the trashcan, over Tailscale).
 //
 // Only the backend (this Next.js app) talks to the database. Browser and iOS
 // code never import this file. Per CLAUDE.md: the front ends never hold DB
@@ -11,8 +11,8 @@ import { Pool, type QueryResultRow } from "pg";
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
   throw new Error(
-    "DATABASE_URL is not set. Copy web/.env.example to web/.env.local and " +
-      "start the database with `docker compose up -d` from the repo root."
+    "DATABASE_URL is not set. Copy web/.env.example to web/.env and point " +
+      "it at the trashcan Postgres (100.117.75.7:5432) over Tailscale."
   );
 }
 

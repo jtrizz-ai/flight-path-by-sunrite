@@ -17,8 +17,10 @@ struct ChatView: View {
 
                 ScrollViewReader { proxy in
                     ScrollView {
-                        if app.messages.isEmpty && !app.isTyping {
+                        if app.messages.isEmpty && !app.isTyping && !app.isLoadingThread {
                             chatEmptyState
+                        } else if app.isLoadingThread && app.messages.isEmpty {
+                            loadingState
                         } else {
                             VStack(spacing: 12) {
                                 ForEach(app.messages) { message in
@@ -54,7 +56,7 @@ struct ChatView: View {
             }
         }
         .sheet(isPresented: $showHistory) {
-            ChatHistorySheet()
+            ChatHistoryDrawer()
                 .environmentObject(app)
         }
     }
@@ -62,21 +64,14 @@ struct ChatView: View {
     // MARK: - Top bar
 
     private var chatTopBar: some View {
-        HStack {
-            Text("NEW CHAT")
-                .font(FPFont.mono(10, .bold))
-                .tracking(1.5)
-                .foregroundColor(.ink3)
-
-            Spacer()
-
+        HStack(spacing: 8) {
             Button {
                 showHistory = true
             } label: {
                 HStack(spacing: 5) {
-                    Image(systemName: "clock.arrow.circlepath")
+                    Image(systemName: "line.3.horizontal")
                         .font(.system(size: 11, weight: .medium))
-                    Text("HISTORY")
+                    Text("CHATS")
                         .font(FPFont.mono(9, .medium))
                         .tracking(1.2)
                 }
@@ -88,12 +83,72 @@ struct ChatView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)
+
+            if let activeId = app.activeThreadId,
+               let thread = app.threads.first(where: { $0.id == activeId }) {
+                Text(thread.title.uppercased())
+                    .font(FPFont.mono(10, .bold))
+                    .tracking(1.2)
+                    .foregroundColor(.ink3)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text("NEW CONVERSATION")
+                    .font(FPFont.mono(10, .bold))
+                    .tracking(1.5)
+                    .foregroundColor(.ink3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Spacer()
+
+            Button {
+                app.startNewChat()
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("NEW")
+                        .font(FPFont.mono(9, .medium))
+                        .tracking(1.2)
+                }
+                .foregroundColor(app.activeThreadId == nil ? .white : .ink3)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    app.activeThreadId == nil
+                        ? Color.fpAccent
+                        : Color.white.opacity(0.04)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(app.activeThreadId == nil ? Color.fpAccent : Color.line, lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
         .overlay(alignment: .bottom) {
             Rectangle().fill(Color.line).frame(height: 1)
         }
+    }
+
+    // MARK: - Loading state (when switching threads)
+
+    private var loadingState: some View {
+        VStack(spacing: 14) {
+            Spacer(minLength: 40)
+            ProgressView()
+                .tint(.ink3)
+            Text("Loading conversation…")
+                .font(FPFont.mono(11))
+                .tracking(1.4)
+                .foregroundColor(.ink3)
+            Spacer(minLength: 20)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Empty state
@@ -308,9 +363,9 @@ fileprivate struct ChatBubble: View {
     }
 }
 
-// MARK: - Chat history sheet
+// MARK: - Chat history drawer (conversation list)
 
-struct ChatHistorySheet: View {
+struct ChatHistoryDrawer: View {
     @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
 
@@ -319,38 +374,52 @@ struct ChatHistorySheet: View {
             ZStack {
                 Color.fpBG.ignoresSafeArea()
 
-                if app.chatHistory.isEmpty {
+                if app.threads.isEmpty {
                     VStack(spacing: 14) {
-                        Image(systemName: "clock.arrow.circlepath")
+                        Image(systemName: "bubble.left.and.bubble.right")
                             .font(.system(size: 38, weight: .light))
                             .foregroundColor(.ink3)
-                        Text("No history yet")
+                        Text("No conversations yet")
                             .font(FPFont.sans(15))
                             .foregroundColor(.ink3)
-                        Text("Your previous conversations will appear here.")
+                        Text("Your past chats will appear here. They auto-clear after 45 days.")
                             .font(FPFont.sans(12))
                             .foregroundColor(.ink3.opacity(0.7))
                             .multilineTextAlignment(.center)
+                            .padding(.horizontal, 30)
                     }
                     .padding(40)
                 } else {
                     ScrollView {
-                        VStack(spacing: 12) {
-                            ForEach(app.chatHistory) { message in
-                                ChatBubble(message: message)
+                        VStack(spacing: 8) {
+                            ForEach(app.threads) { thread in
+                                threadRow(thread)
                             }
                         }
-                        .padding(20)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
                     }
                 }
             }
-            .navigationTitle("Chat History")
+            .navigationTitle("Conversations")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(Color.fpBG, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        app.startNewChat()
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 12, weight: .semibold))
+                            Text("New")
+                                .font(FPFont.sans(13))
+                        }
+                        .foregroundColor(.fpAccent2)
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
                         .foregroundColor(.fpAccent2)
@@ -359,5 +428,82 @@ struct ChatHistorySheet: View {
             }
         }
         .preferredColorScheme(.dark)
+    }
+
+    @ViewBuilder
+    private func threadRow(_ thread: ChatThreadSummary) -> some View {
+        let isActive = thread.id == app.activeThreadId
+        Button {
+            Task {
+                await app.openThread(id: thread.id)
+                dismiss()
+            }
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(thread.title.isEmpty ? "New conversation" : thread.title)
+                        .font(FPFont.sans(14))
+                        .foregroundColor(isActive ? .white : .ink2)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    HStack(spacing: 6) {
+                        Text(formatRelative(thread.updatedAt))
+                            .font(FPFont.mono(9))
+                            .tracking(0.8)
+                        if thread.messageCount > 0 {
+                            Text("·")
+                                .font(FPFont.mono(9))
+                            Text("\(thread.messageCount) msg")
+                                .font(FPFont.mono(9))
+                                .tracking(0.8)
+                        }
+                    }
+                    .foregroundColor(.ink3)
+                    if let preview = thread.lastMessagePreview, !preview.isEmpty {
+                        Text(preview)
+                            .font(FPFont.sans(11.5))
+                            .foregroundColor(.ink3.opacity(0.8))
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 8)
+            }
+            .padding(14)
+            .background(isActive ? Color.white.opacity(0.06) : Color.white.opacity(0.025))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(isActive ? Color.fpAccent.opacity(0.5) : Color.line, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button(role: .destructive) {
+                Task { await app.deleteThread(id: thread.id) }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    /// Compact "2d ago" / "just now" relative time for iOS.
+    private func formatRelative(_ iso: String) -> String {
+        let f = ISO8601DateFormatter()
+        guard let date = f.date(from: iso) else { return "" }
+        let secs = date.timeIntervalSinceNow
+        if abs(secs) < 60 { return "just now" }
+        let mins = Int(secs / 60)
+        if abs(mins) < 60 { return "\(mins)m ago" }
+        let hours = Int(mins / 60)
+        if abs(hours) < 24 { return "\(hours)h ago" }
+        let days = Int(hours / 24)
+        if abs(days) < 7 { return "\(days)d ago" }
+        let weeks = Int(days / 7)
+        if abs(weeks) < 5 { return "\(weeks)w ago" }
+        // Fall back to a short date.
+        let df = DateFormatter()
+        df.dateStyle = .short
+        df.timeStyle = .none
+        return df.string(from: date)
     }
 }
