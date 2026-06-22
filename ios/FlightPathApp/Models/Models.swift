@@ -100,9 +100,39 @@ struct ChatThread: Codable {
     let messages: [ChatMessageRecord]
 }
 
+/// Lightweight row for the conversation list (GET /api/chat/threads).
+/// `messages` is intentionally omitted; the client fetches a single thread
+/// via /api/chat/threads/[id] when the user opens it.
+struct ChatThreadSummary: Codable, Identifiable, Equatable {
+    let id: String
+    let title: String
+    let createdAt: String
+    let updatedAt: String
+    let messageCount: Int
+    let lastMessagePreview: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, createdAt, updatedAt
+        case messageCount = "messageCount"
+        case lastMessagePreview = "lastMessagePreview"
+    }
+}
+
+struct ChatThreadListResponse: Codable {
+    let threads: [ChatThreadSummary]
+}
+
 struct ChatResponse: Codable {
     let answer: String
     let sources: [ChatSource]?
+    /// ID of the thread this answer belongs to. May be a freshly-created
+    /// thread when the client sent without a threadId.
+    let threadId: String?
+    /// Title of the thread (useful when it was just derived from the first
+    /// message and the sidebar needs to update without a re-fetch).
+    let threadTitle: String?
+    /// True iff a new thread row was created on this call.
+    let isNewThread: Bool?
 }
 
 struct HealthResponse: Codable {

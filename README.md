@@ -170,6 +170,18 @@ Notion content changes (there is no auto-sync in v1).
 2. Browse the site tree, open pages, ask chat questions
 3. Edit profile + configure backend URL in Settings
 
+### Chat conversations
+- Each conversation is its own thread. Start a new one with **New chat** in
+  the chat header (web) or top bar (iOS). The conversation is created lazily
+  on your first message, titled automatically from that message.
+- Switch between past conversations from the sidebar (web) or the **CHATS**
+  sheet (iOS). Most-recent floats to the top.
+- Delete a conversation from its row in the sidebar/sheet (hover on web,
+  long-press → Delete on iOS).
+- **Retention:** a conversation auto-clears 45 days after its last message.
+  Continuing it resets the timer. The check runs whenever the conversation
+  list loads, so expired threads never appear even without a scheduled job.
+
 ---
 
 ## Development commands
@@ -203,6 +215,17 @@ npm start            # run compiled worker
   (requires Tailscale; password in 1Password)
 - Apply new migrations in numeric order from `db/migrations/` against the
   remote trashcan cluster.
+- **Latest migration — `007-multi-thread-chat.sql`:** adds the composite
+  index `(user_id, updated_at DESC)` for listing conversations, an index on
+  `updated_at` for retention scans, and a `purge_stale_chat_threads(cutoff)`
+  helper. Safe to apply on the existing data — no rows are changed or moved;
+  your current single thread becomes the most-recent conversation in the new
+  list. Apply with:
+  ```bash
+  docker run --rm -i postgres:16-alpine \
+    psql "postgres://flightpath_user:PASSWORD@100.117.75.7:5432/flightpath?sslmode=disable" \
+    < db/migrations/007-multi-thread-chat.sql
+  ```
 
 ---
 
@@ -218,7 +241,8 @@ Key tables (see `db/init/01-schema.sql` + `db/migrations/`):
 | `invites` | Individual invited emails (when `INVITE_REQUIRED=true`) |
 | `admin_settings` | Key/value config (e.g. `llm_config` JSON) |
 | `notion_pages` | Crawled pages (title, slug, blocks, search_text, search_vector) |
-| `chat_messages` | Chat history per user (role, content, sources, created_at) |
+| `chat_messages` | Chat history per thread (role, content, sources, created_at) |
+| `chat_threads` | One row per conversation; multi-thread per user; auto-clears after 45 idle days |
 | `sync_meta` | Last crawl timestamp + page count |
 
 ---

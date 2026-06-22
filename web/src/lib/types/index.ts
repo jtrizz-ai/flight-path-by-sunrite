@@ -169,3 +169,34 @@ export type ChatThread = {
   updatedAt: string;
   messages: ChatMessageRecord[];
 };
+
+/**
+ * Lightweight row for the conversation list. Used by GET /api/chat/threads.
+ * `messages` is intentionally omitted; clients fetch a single thread by id
+ * via GET /api/chat/threads/[id] when the user opens it.
+ */
+export type ChatThreadSummary = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  lastMessagePreview: string | null;
+};
+
+export type ChatThreadListResponse = {
+  threads: ChatThreadSummary[];
+};
+
+/**
+ * Extended /api/chat response. `threadId` lets the client track which thread
+ * the answer belongs to (it may have just been created on this call).
+ * `threadTitle` mirrors the (possibly newly-derived) title so the sidebar
+ * stays in sync without a separate fetch.
+ */
+export type ChatResponsePayload = {
+  answer: string;
+  sources: ChatSource[];
+  threadId: string;
+  threadTitle: string;
+};

@@ -31,8 +31,10 @@ final class AppState: ObservableObject {
 
     // Chat
     @Published var messages: [ChatMessage] = []
-    @Published var chatHistory: [ChatMessage] = []
+    @Published var threads: [ChatThreadSummary] = []
+    @Published var activeThreadId: String? = nil
     @Published var isTyping = false
+    @Published var isLoadingThread = false
 
     // Auth + profile
     @Published var isAuthenticated = false   // NO MORE DEV BYPASS
@@ -115,7 +117,8 @@ final class AppState: ObservableObject {
         user = nil
         isAuthenticated = false
         messages = []
-        chatHistory = []
+        threads = []
+        activeThreadId = nil
         badges = []
         doors = 0
         conversations = 0
@@ -125,10 +128,14 @@ final class AppState: ObservableObject {
 
     // ── Post-authentication bootstrap ──────────────────────────────────
 
-    /// Called after successful sign-in or restore. Loads chat history,
+    /// Called after successful sign-in or restore. Loads chat thread list,
     /// tally totals, badges, and tracks the app open.
     private func onAuthenticated() async {
-        await loadChatHistory()
+        await loadThreads()
+        // Resume the most recent conversation, if any (matches Claude.ai).
+        if let newest = threads.first {
+            await openThread(id: newest.id)
+        }
         await loadTally()
         await loadBadges()
         api.trackAppOpen()
@@ -184,10 +191,28 @@ final class AppState: ObservableObject {
 
     // ── Chat ────────────────────────────────────────────────────────────
 
-    func loadChatHistory() async {
+    /// Load the conversation list from the backend. Also lazily purges the
+    /// user's stale threads (>= 45 days idle) — that purge happens server-side
+    /// on every list call. Safe to call repeatedly.
+    func loadThreads() async {
         do {
-            let thread = try await api.fetchChatThread()
-            chatHistory = thread.messages.map { m in
+            threads = try await api.fetchChatThreads()
+        } catch {
+            // Leave existing list intact on failure.
+        }
+    }
+
+    /// Open a thread by id, fetch its messages, and swap them into the
+    /// active conversation. No-op if the id matches the active thread.
+    func openThread(id: String) async {
+        if activeThreadId == id && !messages.isEmpty { return }
+        activeThreadId = id
+        messages = []
+        isLoadingThread = true
+        defer { isLoadingThread = false }
+        do {
+            let thread = try await api.fetchChatThread(id: id)
+            messages = thread.messages.map { m in
                 ChatMessage(
                     id: UUID(uuidString: m.id) ?? UUID(),
                     role: m.role == "user" ? .me : .ai,
@@ -196,12 +221,31 @@ final class AppState: ObservableObject {
                 )
             }
         } catch {
-            // Leave history empty on failure; user can still send new messages.
+            messages = []
         }
     }
 
+    /// Begin a fresh conversation: clear active thread + message bubble state.
+    /// The new thread row is created lazily on the first send.
     func startNewChat() {
+        activeThreadId = nil
         messages = []
+    }
+
+    /// Delete a thread. If it was the active one, fall back to the most
+    /// recent surviving thread (or start fresh).
+    func deleteThread(id: String) async {
+        let wasActive = (id == activeThreadId)
+        threads.removeAll { $0.id == id }
+        try? await api.deleteChatThread(id: id)
+        if wasActive {
+            if let newest = threads.first {
+                await openThread(id: newest.id)
+            } else {
+                startNewChat()
+            }
+        }
+        await loadThreads()
     }
 
     func send(_ text: String) {
@@ -209,15 +253,22 @@ final class AppState: ObservableObject {
         guard !trimmed.isEmpty else { return }
         messages.append(ChatMessage(id: UUID(), role: .me, text: trimmed, sources: nil))
         isTyping = true
+        let targetThreadId = activeThreadId
         Task {
             do {
-                let resp = try await api.sendChat(message: trimmed)
+                let resp = try await api.sendChat(message: trimmed, threadId: targetThreadId)
+                // Track the (possibly newly-created) thread id.
+                if let newId = resp.threadId, newId != activeThreadId {
+                    activeThreadId = newId
+                }
                 messages.append(ChatMessage(
                     id: UUID(),
                     role: .ai,
                     text: resp.answer,
                     sources: resp.sources
                 ))
+                // Refresh sidebar previews (title, message count, last preview).
+                await loadThreads()
             } catch {
                 messages.append(ChatMessage(
                     id: UUID(),
@@ -231,9 +282,6 @@ final class AppState: ObservableObject {
     }
 
     func select(_ newTab: AppTab) {
-        if newTab == .chat && tab != .chat {
-            startNewChat()
-        }
         withAnimation(.easeInOut(duration: 0.22)) {
             tab = newTab
         }

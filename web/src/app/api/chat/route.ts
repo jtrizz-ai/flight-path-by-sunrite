@@ -3,19 +3,29 @@ import { query } from "@/lib/db";
 import { requireUser } from "@/lib/auth/resolveSession";
 import { retrievePages, toSources } from "@/lib/chat/retrieve";
 import { callLlmWithTools, type ChatMsg, type ToolDefinition, type ToolCall } from "@/lib/chat/llm";
+import { deriveThreadTitle } from "@/lib/chat/title";
 import type { ChatSource } from "@/lib/types";
 
 // ─────────────────────────────────────────────────────────────────────────
 // POST /api/chat
 //
+// Body: { message: string, threadId?: string }
+//
+// Threading:
+//   • If threadId is supplied, it must belong to the caller. 404 otherwise.
+//   • If threadId is omitted, a new thread is created and titled from the
+//     first message. The new id + title are returned so the client can
+//     update its sidebar without an extra round-trip.
+//
 // Flow (LLM-directed retrieval via tool calling):
-//   1. Persist the user message.
-//   2. Offer the LLM a `search_flight_path` tool. It decides whether the
+//   1. Resolve / create the thread.
+//   2. Persist the user message.
+//   3. Offer the LLM a `search_flight_path` tool. It decides whether the
 //      question needs a knowledge-base lookup and what query to use.
-//   3. If the LLM calls the tool → run retrieval → send results back → LLM
+//   4. If the LLM calls the tool → run retrieval → send results back → LLM
 //      produces a grounded answer with sources.
-//   4. If the LLM skips the tool → it already answered from general knowledge.
-//   5. Persist + return { answer, sources }.
+//   5. If the LLM skips the tool → it already answered from general knowledge.
+//   6. Persist + return { answer, sources, threadId, threadTitle }.
 //
 // 503 if the LLM is unreachable.
 // ─────────────────────────────────────────────────────────────────────────
@@ -55,7 +65,7 @@ export async function POST(req: Request) {
   const user = await requireUser(req);
   if (user instanceof Response) return user;
 
-  let body: { message?: unknown };
+  let body: { message?: unknown; threadId?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -70,19 +80,34 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "message too long (max 4000)" }, { status: 400 });
   }
 
-  // Get or create the user's thread.
-  let { rows: tRows } = await query<{ id: string }>(
-    `SELECT id FROM chat_threads WHERE user_id = $1 LIMIT 1`,
-    [user.id]
-  );
-  if (tRows.length === 0) {
-    const { rows: ins } = await query<{ id: string }>(
-      `INSERT INTO chat_threads (user_id) VALUES ($1) RETURNING id`,
-      [user.id]
+  const suppliedThreadId =
+    typeof body.threadId === "string" && body.threadId.length > 0 ? body.threadId : null;
+
+  // ── Resolve or create the thread ──────────────────────────────────────
+  let threadId: string;
+  let threadTitle: string;
+  let isNewThread = false;
+
+  if (suppliedThreadId) {
+    const { rows: owned } = await query<{ id: string; title: string }>(
+      `SELECT id, title FROM chat_threads WHERE id = $1 AND user_id = $2`,
+      [suppliedThreadId, user.id]
     );
-    tRows = ins;
+    if (owned.length === 0) {
+      return NextResponse.json({ error: "thread not found" }, { status: 404 });
+    }
+    threadId = owned[0].id;
+    threadTitle = owned[0].title;
+  } else {
+    // Create a fresh thread titled from the first user message.
+    threadTitle = deriveThreadTitle(message);
+    const { rows: inserted } = await query<{ id: string }>(
+      `INSERT INTO chat_threads (user_id, title) VALUES ($1, $2) RETURNING id`,
+      [user.id, threadTitle]
+    );
+    threadId = inserted[0].id;
+    isNewThread = true;
   }
-  const threadId = tRows[0].id;
 
   // 1. Persist the user message.
   await query(
@@ -149,7 +174,13 @@ export async function POST(req: Request) {
     [threadId, answer, JSON.stringify(sources)]
   );
 
-  return NextResponse.json({ answer, sources });
+  return NextResponse.json({
+    answer,
+    sources,
+    threadId,
+    threadTitle,
+    isNewThread,
+  });
 }
 
 // ── Tool execution ──────────────────────────────────────────────────────

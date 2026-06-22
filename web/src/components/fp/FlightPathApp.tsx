@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppHeader } from './AppHeader';
 import { TabBar, type TabId } from './TabBar';
 import { SideDrawer } from './SideDrawer';
@@ -8,6 +8,8 @@ import { HomeView } from './HomeView';
 import { ScheduleView } from './ScheduleView';
 import { TallyView } from './TallyView';
 import { ChatView, type ChatMessage, type ChatSource } from './ChatView';
+import { ChatSidebar } from './ChatSidebar';
+import type { ChatThreadSummary } from '@/lib/types';
 
 export type ContentPageSummary = {
   slug: string;
@@ -22,6 +24,7 @@ export function FlightPathApp({
   pages,
 }: {
   userName: string;
+  userInitials?: string;
   userEmail: string;
   userRole: string;
   pages: ContentPageSummary[];
@@ -34,40 +37,111 @@ export function FlightPathApp({
   const [isTyping, setIsTyping] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
 
-  // Load chat history once (when the user first navigates to chat or mounts).
+  // Multi-thread state
+  const [threads, setThreads] = useState<ChatThreadSummary[]>([]);
+  const [threadsLoaded, setThreadsLoaded] = useState(false);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Bump to force a thread-list refresh (after send/delete).
+  const [threadsVersion, setThreadsVersion] = useState(0);
+  // Guards against an interleaved load when the active thread changes.
+  const activeLoadToken = useRef(0);
+
+  // ── Refresh the conversation list on mount and after mutations ─────────
+  // Inline async work (rather than calling a useCallback) so the linter can
+  // see the setState calls happen after `await` and don't cascade renders.
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/chat/threads', { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((d) => {
-        if (cancelled || !d.thread) return;
-        setMessages(
-          d.thread.messages.map(
-            (m: {
-              id: string;
-              role: string;
-              content: string;
-              sources?: ChatSource[];
-            }) => ({
+    (async () => {
+      try {
+        const r = await fetch('/api/chat/threads', { cache: 'no-store' });
+        const data = await r.json();
+        if (!cancelled && Array.isArray(data.threads)) {
+          setThreads(data.threads);
+        }
+      } catch {
+        /* leave existing list */
+      } finally {
+        if (!cancelled) setThreadsLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [threadsVersion]);
+
+  // ── Open a thread by id: fetch its messages and swap them in ─────────────
+  const openThread = useCallback(
+    (id: string) => {
+      const token = ++activeLoadToken.current;
+      setActiveThreadId(id);
+      setHistoryLoaded(false);
+      setMessages([]);
+      (async () => {
+        try {
+          const r = await fetch(`/api/chat/threads/${encodeURIComponent(id)}`, {
+            cache: 'no-store',
+          });
+          if (!r.ok) throw new Error('thread fetch failed');
+          const data = await r.json();
+          if (token !== activeLoadToken.current) return; // a newer load won
+          const fetched: ChatMessage[] = (data.thread?.messages ?? []).map(
+            (m: { id: string; role: string; content: string; sources?: ChatSource[] }) => ({
               id: m.id,
               role: m.role === 'user' ? 'me' : 'ai',
               text: m.content,
               sources: m.sources ?? undefined,
             })
-          )
-        );
-      })
-      .catch(() => {
-        /* leave empty; user can still send new messages */
-      })
-      .finally(() => {
-        if (!cancelled) setHistoryLoaded(true);
-      });
-    return () => {
-      cancelled = true;
-    };
+          );
+          setMessages(fetched);
+        } catch {
+          if (token !== activeLoadToken.current) return;
+          setMessages([]);
+        } finally {
+          if (token === activeLoadToken.current) setHistoryLoaded(true);
+        }
+      })();
+    },
+    []
+  );
+
+  // ── "New chat": clear the active thread + composer; thread is created on first send ──
+  const startNewChat = useCallback(() => {
+    activeLoadToken.current++; // invalidate any in-flight load
+    setActiveThreadId(null);
+    setMessages([]);
+    setHistoryLoaded(true);
   }, []);
 
+  // ── Delete a thread. If it was active, fall back to the most recent ──────
+  const deleteThread = useCallback(
+    async (id: string) => {
+      // Optimistic removal from the sidebar.
+      const remaining = threads.filter((t) => t.id !== id);
+      setThreads(remaining);
+
+      try {
+        await fetch(`/api/chat/threads/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+        });
+      } catch {
+        /* server is the source of truth; refresh on failure */
+      }
+
+      if (id === activeThreadId) {
+        const next = remaining[0];
+        if (next) {
+          await openThread(next.id);
+        } else {
+          startNewChat();
+        }
+      }
+      setThreadsVersion((v) => v + 1);
+    },
+    [threads, activeThreadId, openThread, startNewChat]
+  );
+
+  // ── Send a message. Creates a new thread on demand. ──────────────────────
   const handleSendMessage = useCallback(
     async (text: string) => {
       const userMsg: ChatMessage = {
@@ -77,14 +151,22 @@ export function FlightPathApp({
       };
       setMessages((prev) => [...prev, userMsg]);
       setIsTyping(true);
+
+      const targetThreadId = activeThreadId;
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ message: text }),
+          body: JSON.stringify(targetThreadId ? { message: text, threadId: targetThreadId } : { message: text }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? 'Chat failed');
+
+        // Track the (possibly new) thread id so subsequent sends append.
+        if (data.threadId && data.threadId !== activeThreadId) {
+          setActiveThreadId(data.threadId);
+        }
+
         setMessages((prev) => [
           ...prev,
           {
@@ -94,6 +176,9 @@ export function FlightPathApp({
             sources: data.sources,
           },
         ]);
+
+        // Sidebar preview/title may have changed.
+        setThreadsVersion((v) => v + 1);
       } catch {
         setMessages((prev) => [
           ...prev,
@@ -107,8 +192,61 @@ export function FlightPathApp({
         setIsTyping(false);
       }
     },
-    []
+    [activeThreadId]
   );
+
+  // On first chat entry with no active thread but threads exist, load the most
+  // recent so the user resumes where they left off (matches Claude.ai). Inlined
+  // (not via openThread) so the set-state-in-effect rule can see the await.
+  useEffect(() => {
+    if (
+      currentTab !== 'chat' ||
+      activeThreadId !== null ||
+      !threadsLoaded ||
+      threads.length === 0 ||
+      isTyping
+    ) {
+      return;
+    }
+    let cancelled = false;
+    const token = ++activeLoadToken.current;
+    const top = threads[0];
+    // Clear + show loading state before the fetch so the user sees immediate
+    // feedback when switching threads. These setStates DO cause an extra
+    // render — that's the intended UX here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveThreadId(top.id);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHistoryLoaded(false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMessages([]);
+    (async () => {
+      try {
+        const r = await fetch(`/api/chat/threads/${encodeURIComponent(top.id)}`, {
+          cache: 'no-store',
+        });
+        if (!r.ok) throw new Error('thread fetch failed');
+        const data = await r.json();
+        if (cancelled || token !== activeLoadToken.current) return;
+        const fetched: ChatMessage[] = (data.thread?.messages ?? []).map(
+          (m: { id: string; role: string; content: string; sources?: ChatSource[] }) => ({
+            id: m.id,
+            role: m.role === 'user' ? 'me' : 'ai',
+            text: m.content,
+            sources: m.sources ?? undefined,
+          })
+        );
+        setMessages(fetched);
+      } catch {
+        if (!cancelled && token === activeLoadToken.current) setMessages([]);
+      } finally {
+        if (!cancelled && token === activeLoadToken.current) setHistoryLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTab, activeThreadId, threadsLoaded, threads, isTyping]);
 
   const handleNavigate = (tab: 'home' | TabId) => {
     setCurrentTab(tab);
@@ -133,6 +271,10 @@ export function FlightPathApp({
     .toUpperCase()
     .slice(0, 2);
 
+  // Title for the chat header: the active thread's title, or a hint when starting fresh.
+  const activeThreadTitle =
+    activeThreadId ? threads.find((t) => t.id === activeThreadId)?.title ?? 'Conversation' : null;
+
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--color-fp-bg)' }}>
       {/* Grain overlay */}
@@ -155,6 +297,9 @@ export function FlightPathApp({
             messages={messages}
             onSend={handleSendMessage}
             isTyping={isTyping || !historyLoaded ? isTyping : false}
+            onOpenSidebar={() => setSidebarOpen(true)}
+            onNewChat={startNewChat}
+            activeThreadTitle={activeThreadTitle}
           />
         )}
       </div>
@@ -176,6 +321,18 @@ export function FlightPathApp({
           onNavigate={handleNavigate}
         />
       )}
+
+      {/* Chat conversations sidebar */}
+      <ChatSidebar
+        isOpen={sidebarOpen}
+        threads={threads}
+        activeThreadId={activeThreadId}
+        isLoading={!threadsLoaded}
+        onClose={() => setSidebarOpen(false)}
+        onSelect={openThread}
+        onNewChat={startNewChat}
+        onDelete={deleteThread}
+      />
     </div>
   );
 }
