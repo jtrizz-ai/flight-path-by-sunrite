@@ -150,6 +150,49 @@ final class APIClient {
         try await request(path: "/api/chat/health")
     }
 
+    // ── Avatar upload (multipart/form-data) ─────────────────────────────
+
+    /// Upload a profile image. Returns the new avatar URL.
+    func uploadAvatar(data: Data, mimeType: String) async throws -> String {
+        guard let url = URL(string: AppConfig.backendBaseURLNormalized + "/api/profile/avatar") else {
+            throw APIError.invalidURL
+        }
+
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        guard let token = KeychainStore.loadToken() else { throw APIError.notAuthenticated }
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let ext = (mimeType as NSString).pathExtension.isEmpty ? "img" : (mimeType as NSString).pathExtension
+        let filename = "avatar.\(ext)"
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+        body.append(data)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        req.httpBody = body
+
+        let (responseData, response): (Data, URLResponse)
+        do {
+            (responseData, response) = try await URLSession.shared.data(for: req)
+        } catch {
+            throw APIError.network(error)
+        }
+
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            let apiErr = try? JSONDecoder().decode(ApiError.self, from: responseData)
+            throw APIError.http(http.statusCode, apiErr?.error)
+        }
+
+        struct AvatarResponse: Decodable { let avatarUrl: String? }
+        let parsed = try JSONDecoder().decode(AvatarResponse.self, from: responseData)
+        return parsed.avatarUrl ?? ""
+    }
+
     // ── Tally ──────────────────────────────────────────────────────────
 
     func fetchTally() async throws -> TallyTotals {

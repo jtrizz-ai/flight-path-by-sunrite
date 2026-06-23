@@ -3,6 +3,7 @@ import { Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { colors, fonts } from "@/constants/theme";
+import { MenuButton } from "@/components/SideDrawer";
 
 export default function TabLayout() {
   return (
@@ -29,6 +30,7 @@ export default function TabLayout() {
           textTransform: "uppercase",
         },
         headerShadowVisible: false,
+        headerLeft: () => <MenuButton />,
         headerRight: () => (
           <Link href="/settings" asChild>
             <Pressable hitSlop={12} style={{ marginRight: 16 }}>

@@ -606,8 +606,8 @@ private struct LevelsCalculator: View {
     private func attr(_ pre: String, _ bold: String, _ post: String) -> AttributedString {
         var a = AttributedString(pre)
         var b = AttributedString(bold)
-        b.foregroundColor = .fpAccent2
-        var c = AttributedString(post)
+        b.foregroundColor = Color.fpAccent2
+        let c = AttributedString(post)
         a.append(b); a.append(c)
         return a
     }
@@ -616,5 +616,4 @@ private struct LevelsCalculator: View {
 #Preview {
     LevelsView()
         .preferredColorScheme(.dark)
-        .onAppear { FPFonts.registerAll() }
 }

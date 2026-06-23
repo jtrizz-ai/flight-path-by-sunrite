@@ -26,6 +26,7 @@ export default function ProfileForm({
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     fetch("/api/me", { cache: "no-store" })
@@ -44,6 +45,24 @@ export default function ProfileForm({
         /* leave loading state; user can retry by reloading */
       });
   }, []);
+
+  async function onUploadAvatar(file: File) {
+    setUploadingAvatar(true);
+    setError(null);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/profile/avatar", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      if (data.avatarUrl) setAvatarUrl(data.avatarUrl);
+      if (data.user) setProfile(data.user);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
 
   async function onSave() {
     setSaving(true);
@@ -80,13 +99,52 @@ export default function ProfileForm({
       <Field label="FULL NAME">
         <input className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} />
       </Field>
-      <Field label="AVATAR URL">
-        <input
-          className={inputCls}
-          value={avatarUrl}
-          onChange={(e) => setAvatarUrl(e.target.value)}
-          placeholder="https://…"
-        />
+
+      {/* Avatar image upload */}
+      <Field label="PROFILE IMAGE">
+        <div className="flex items-center gap-4">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt="Avatar"
+              className="w-16 h-16 rounded-full object-cover"
+              style={{ border: "1px solid var(--color-fp-line)" }}
+            />
+          ) : (
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center font-[var(--font-fp-display)] text-xl text-white"
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--color-fp-accent), var(--color-fp-accent-2))",
+                border: "1px solid var(--color-fp-line)",
+              }}
+            >
+              {(fullName[0] ?? "?").toUpperCase()}
+            </div>
+          )}
+          <label
+            className="cursor-pointer rounded-[var(--radius-fp-button)] border px-4 py-2.5 font-[var(--font-fp-mono)] text-[11px] uppercase tracking-[0.14em] transition-colors hover:brightness-125"
+            style={{
+              borderColor: "var(--color-fp-accent)",
+              color: "var(--color-fp-accent)",
+              backgroundColor: "rgba(232,71,42,0.06)",
+            }}
+          >
+            {uploadingAvatar ? "Uploading…" : "Choose Image"}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="hidden"
+              disabled={uploadingAvatar}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onUploadAvatar(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
       </Field>
       <Field label="PHONE">
         <input className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} />

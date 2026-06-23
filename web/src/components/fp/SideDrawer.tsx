@@ -32,6 +32,7 @@ export function SideDrawer({
 
   const extraLinks: { title: string; icon?: string; useBrand?: boolean }[] = [
     { title: 'Flight Path Program', useBrand: true },
+    { title: 'Levels', icon: 'M5 21V7l7-4 7 4v14M9 21v-6h6v6' },
     { title: 'Profile', icon: 'M4 21c0-4 4-6 8-6s8 2 8 6' },
     { title: 'Settings', icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z' },
   ];
@@ -145,7 +146,14 @@ export function SideDrawer({
             }
             if (link.title === 'Flight Path Program') {
               return (
-                <Link key={link.title} href="/pages" onClick={onClose} className={cls} style={style}>
+                <Link key={link.title} href="/program" onClick={onClose} className={cls} style={style}>
+                  {inner}
+                </Link>
+              );
+            }
+            if (link.title === 'Levels') {
+              return (
+                <Link key={link.title} href="/levels" onClick={onClose} className={cls} style={style}>
                   {inner}
                 </Link>
               );

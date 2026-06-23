@@ -84,6 +84,7 @@ function RootNavigator() {
           options={{ presentation: "modal", title: "Profile" }}
         />
         <Stack.Screen name="page/[slug]" options={{ title: "Page" }} />
+        <Stack.Screen name="levels" options={{ title: "Levels" }} />
       </Stack>
 
       <AuthGate />

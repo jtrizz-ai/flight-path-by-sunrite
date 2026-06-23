@@ -7,6 +7,8 @@ struct SideDrawer: View {
     @State private var showProfile = false
     @State private var showSettings = false
     @State private var showDoorPitch = false
+    @State private var showLevels = false
+    @State private var showProgram = false
 
     private struct Link: Identifiable {
         let id = UUID()
@@ -29,6 +31,7 @@ struct SideDrawer: View {
             links.append(.init(title: "Admin Portal", systemImage: "shield.lefthalf.filled", useBrandMark: false, tab: nil))
         }
         links.append(.init(title: "Flight Path Program", systemImage: nil, useBrandMark: true, tab: nil))
+        links.append(.init(title: "Levels", systemImage: "rosette", useBrandMark: false, tab: nil))
         links.append(.init(title: "Door Pitch", systemImage: "mic", useBrandMark: false, tab: nil))
         links.append(.init(title: "Profile", systemImage: "person.crop.circle", useBrandMark: false, tab: nil))
         links.append(.init(title: "Settings", systemImage: "gearshape", useBrandMark: false, tab: nil))
@@ -61,6 +64,8 @@ struct SideDrawer: View {
         .animation(.spring(response: 0.34, dampingFraction: 0.86), value: app.drawerOpen)
         .allowsHitTesting(app.drawerOpen)
         .sheet(isPresented: $showDoorPitch) { DoorPitchView() }
+        .sheet(isPresented: $showLevels) { LevelsView() }
+        .sheet(isPresented: $showProgram) { FlightPathProgramView(app: app) }
         .sheet(isPresented: $showProfile) { ProfileView(app: app) }
         .sheet(isPresented: $showSettings) { SettingsView(app: app) }
     }
@@ -130,6 +135,8 @@ struct SideDrawer: View {
             switch link.title {
             case "Door Pitch":
                 showDoorPitch = true
+            case "Levels":
+                showLevels = true
             case "Profile":
                 showProfile = true
             case "Settings":
@@ -138,6 +145,8 @@ struct SideDrawer: View {
                 let url = URL(string: AppConfig.backendBaseURL + "/admin")!
                 UIApplication.shared.open(url)
                 close()
+            case "Flight Path Program":
+                showProgram = true
             default:
                 if let tab = link.tab { app.select(tab) }
                 close()

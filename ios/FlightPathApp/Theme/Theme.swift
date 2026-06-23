@@ -40,4 +40,5 @@ enum FPRadius {
     static let pill: CGFloat = 999
     static let button: CGFloat = 14
     static let tile: CGFloat = 16
+    static let md: CGFloat = 16
 }

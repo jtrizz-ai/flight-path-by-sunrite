@@ -90,6 +90,9 @@ final class AppState: ObservableObject {
             signInError = "Could not reach the backend. Check Settings → Backend URL."
         } catch {
             // User-cancelled Google sign-in lands here silently — don't surface as error.
+            // Temp debug: surface ALL errors during troubleshooting.
+            print("[signInWithGoogle] unhandled error: \(error)")
+            signInError = "Sign-in failed: \(error.localizedDescription)"
         }
     }
 
