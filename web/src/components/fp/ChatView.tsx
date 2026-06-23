@@ -124,7 +124,7 @@ export function ChatView({
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-5">
-        <div className="flex flex-col gap-3 max-w-3xl mx-auto">
+        <div className="flex flex-col gap-5 max-w-3xl mx-auto">
           {messages.map((msg) => (
             <ChatBubble key={msg.id} message={msg} />
           ))}
@@ -185,10 +185,10 @@ function ChatBubble({ message }: { message: ChatMessage }) {
   const who = isMe ? 'You' : 'Flight Path AI';
 
   return (
-    <div className={`flex flex-col gap-1.5 ${isMe ? 'items-end' : 'items-start'}`}>
+    <div className={`flex flex-col gap-2 ${isMe ? 'items-end' : 'items-start'}`}>
       <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} w-full`}>
         <div
-          className="max-w-[80%] px-3.5 py-2.5"
+          className="max-w-[85%] px-5 py-4"
           style={{
             backgroundColor: isMe ? 'var(--color-fp-accent)' : 'var(--color-fp-card)',
             border: isMe ? 'none' : '1px solid var(--color-fp-card-line)',
@@ -198,17 +198,16 @@ function ChatBubble({ message }: { message: ChatMessage }) {
           }}
         >
           <div
-            className="font-[var(--font-fp-mono)] text-[9px] tracking-[0.16em] uppercase mb-1"
+            className="font-[var(--font-fp-mono)] text-[9px] tracking-[0.16em] uppercase mb-1.5"
             style={{ color: isMe ? 'rgba(255,255,255,0.7)' : 'var(--color-fp-ink-3)' }}
           >
             {who}
           </div>
-          <div
-            className="font-[var(--font-fp-sans)] text-[13.5px] leading-relaxed"
-            style={{ color: isMe ? '#fff' : 'var(--color-fp-ink)' }}
-          >
+          <div style={{ color: isMe ? '#fff' : 'var(--color-fp-ink)' }}>
             {isMe ? (
-              <span className="whitespace-pre-wrap">{message.text}</span>
+              <span className="font-[var(--font-fp-sans)] text-[14px] leading-[1.6] whitespace-pre-wrap">
+                {message.text}
+              </span>
             ) : (
               <MarkdownResponse>{message.text}</MarkdownResponse>
             )}
@@ -216,7 +215,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
         </div>
       </div>
       {!isMe && message.sources && message.sources.length > 0 && (
-        <div className="max-w-[80%] w-full flex flex-col gap-1.5">
+        <div className="max-w-[85%] w-full flex flex-col gap-2 mt-1">
           {message.sources.map((s) => (
             <SourceCard key={s.pageId} source={s} />
           ))}

@@ -22,7 +22,7 @@ struct ChatView: View {
                         } else if app.isLoadingThread && app.messages.isEmpty {
                             loadingState
                         } else {
-                            VStack(spacing: 12) {
+                            VStack(spacing: 16) {
                                 ForEach(app.messages) { message in
                                     ChatBubble(message: message)
                                         .id(message.id)
@@ -296,8 +296,8 @@ fileprivate struct ChatBubble: View {
                         .padding(.top, 4)
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 11)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
                 .background(isMe ? Color.fpAccent : Color.card)
                 .overlay(
                     bubbleShape

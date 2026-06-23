@@ -107,8 +107,14 @@ export async function callLlmWithTools(
   return { ok: true, answer, toolCalls: null };
 }
 
-/** Used by /api/chat/health: tiny probe that does NOT consume tokens. */
-export async function pingLlm(): Promise<{ ok: boolean; model?: string; error?: string }> {
+/** Used by /api/chat/health: tiny probe that does NOT consume tokens.
+ *  Fetches /models and echoes the actual served model ID. */
+export async function pingLlm(): Promise<{
+  ok: boolean;
+  model?: string;
+  servedModel?: string;
+  error?: string;
+}> {
   const cfg = await getLlmConfig();
   const url = `${cfg.baseUrl.replace(/\/+$/, "")}/models`;
   try {
@@ -119,8 +125,10 @@ export async function pingLlm(): Promise<{ ok: boolean; model?: string; error?: 
           : {},
     });
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
-    await res.text();
-    return { ok: true, model: cfg.model };
+    const data = await res.json().catch(() => null);
+    const servedModel =
+      data?.data?.[0]?.id ?? data?.data?.[0]?.object ?? undefined;
+    return { ok: true, model: cfg.model, servedModel };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "unreachable" };
   }

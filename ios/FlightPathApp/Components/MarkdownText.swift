@@ -1,9 +1,12 @@
 import SwiftUI
 import Foundation
 
-/// Renders a markdown string as a styled AttributedString inside SwiftUI Text.
+/// Renders a markdown string as styled content inside SwiftUI.
 /// Handles headings, bold, italic, inline code, bullet lists, numbered lists,
-/// blockquotes, and code blocks — the common markdown an LLM produces in chat.
+/// blockquotes, code blocks, and GFM-style markdown tables.
+///
+/// Tables are parsed and rendered as native stacked row views (not raw pipes).
+/// Literal `<br>` tags are converted to real line breaks.
 struct MarkdownText: View {
     let text: String
     let baseFont: Font
@@ -14,18 +17,128 @@ struct MarkdownText: View {
     }
 
     var body: some View {
-        Text(buildAttributedString())
-            .environment(\.openURL, OpenURLAction { _ in .handled })
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(Array(renderedSegments.enumerated()), id: \.offset) { _, segment in
+                switch segment {
+                case .text(let attrString):
+                    Text(attrString)
+                        .lineSpacing(5)
+                        .environment(\.openURL, OpenURLAction { _ in .handled })
+                case .table(let header, let rows):
+                    MarkdownTableView(header: header, rows: rows, baseFont: baseFont)
+                }
+            }
+        }
     }
 
-    private func buildAttributedString() -> AttributedString {
+    // MARK: - Segment model
+
+    private enum RenderedSegment {
+        case text(AttributedString)
+        case table(header: [String], rows: [[String]])
+    }
+
+    // MARK: - Preprocessing + segmentation
+
+    private var renderedSegments: [RenderedSegment] {
+        let cleaned = preprocess(text)
+        let lines = cleaned.components(separatedBy: "\n")
+        var segments: [RenderedSegment] = []
+        var textBuffer: [String] = []
+        var inCodeBlock = false
+
+        func flushText() {
+            guard !textBuffer.isEmpty else { return }
+            let attr = buildAttributedString(textBuffer)
+            if !attr.characters.isEmpty {
+                segments.append(.text(attr))
+            }
+            textBuffer.removeAll()
+        }
+
+        var i = 0
+        while i < lines.count {
+            let line = lines[i]
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            // Code fence toggle — defer everything inside to text buffer
+            if trimmed.hasPrefix("```") {
+                textBuffer.append(line)
+                inCodeBlock.toggle()
+                i += 1
+                continue
+            }
+            if inCodeBlock {
+                textBuffer.append(line)
+                i += 1
+                continue
+            }
+
+            // Table detection: line starts with "|" and next line is a separator
+            if trimmed.hasPrefix("|") && i + 1 < lines.count {
+                let nextTrimmed = lines[i + 1].trimmingCharacters(in: .whitespaces)
+                if isTableSeparator(nextTrimmed) {
+                    flushText()
+                    var tableLines: [String] = []
+                    while i < lines.count && lines[i].trimmingCharacters(in: .whitespaces).hasPrefix("|") {
+                        tableLines.append(lines[i].trimmingCharacters(in: .whitespaces))
+                        i += 1
+                    }
+                    if let table = parseTable(tableLines) {
+                        segments.append(.table(header: table.header, rows: table.rows))
+                    }
+                    continue
+                }
+            }
+
+            textBuffer.append(line)
+            i += 1
+        }
+
+        flushText()
+        return segments
+    }
+
+    private func preprocess(_ raw: String) -> String {
+        raw
+            .replacingOccurrences(of: "<br />", with: "\n", options: .caseInsensitive)
+            .replacingOccurrences(of: "<br/>", with: "\n", options: .caseInsensitive)
+            .replacingOccurrences(of: "<br>", with: "\n", options: .caseInsensitive)
+    }
+
+    // MARK: - Table parsing
+
+    private func isTableSeparator(_ line: String) -> Bool {
+        line.contains("-") && line.allSatisfy {
+            $0 == "|" || $0 == "-" || $0 == ":" || $0 == " " || $0 == "\t"
+        }
+    }
+
+    private func parseTable(_ lines: [String]) -> (header: [String], rows: [[String]])? {
+        guard lines.count >= 2 else { return nil }
+        let header = parseTableRow(lines[0])
+        var rows: [[String]] = []
+        for index in 2..<lines.count {
+            rows.append(parseTableRow(lines[index]))
+        }
+        return (header, rows)
+    }
+
+    private func parseTableRow(_ line: String) -> [String] {
+        var s = line.trimmingCharacters(in: .whitespaces)
+        if s.hasPrefix("|") { s = String(s.dropFirst()) }
+        if s.hasSuffix("|") { s = String(s.dropLast()) }
+        return s.components(separatedBy: "|").map { $0.trimmingCharacters(in: .whitespaces) }
+    }
+
+    // MARK: - AttributedString builder (for text segments)
+
+    private func buildAttributedString(_ lines: [String]) -> AttributedString {
         var output = AttributedString()
-        let lines = text.components(separatedBy: "\n")
         var inCodeBlock = false
         var codeBlockLines: [String] = []
 
         for line in lines {
-            // Toggle code fence
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             if trimmed.hasPrefix("```") {
                 if inCodeBlock {
@@ -41,13 +154,11 @@ struct MarkdownText: View {
                 codeBlockLines.append(line)
                 continue
             }
-
             if let block = formatLine(line) {
                 output.append(block)
             }
         }
 
-        // Flush trailing code block
         if inCodeBlock && !codeBlockLines.isEmpty {
             output.append(formatCodeBlock(codeBlockLines))
         }
@@ -61,7 +172,6 @@ struct MarkdownText: View {
         let line = rawLine
         let trimmed = line.trimmingCharacters(in: .whitespaces)
 
-        // Skip raw fence markers that slipped through
         if trimmed.hasPrefix("```") { return nil }
 
         // Blank line -> paragraph break
@@ -69,18 +179,18 @@ struct MarkdownText: View {
             return AttributedString("\n\n")
         }
 
-        // Headings: # ## ### ...
+        // Headings
         if trimmed.hasPrefix("# ") || trimmed.hasPrefix("## ") || trimmed.hasPrefix("### ") {
             return formatHeading(trimmed)
         }
 
-        // Bullet items: - * +
+        // Bullet items
         if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") || trimmed.hasPrefix("+ ") {
             let content = String(trimmed.dropFirst(2))
             return formatListItem(prefix: "  •  ", content: content)
         }
 
-        // Numbered items: 1. 2. ...
+        // Numbered items
         if let parsed = parseNumberedItem(trimmed) {
             return formatListItem(prefix: "  \(parsed.number).  ", content: parsed.content)
         }
@@ -140,8 +250,6 @@ struct MarkdownText: View {
     // MARK: - Inline parsing (bold, italic, code, links)
 
     private func parseInline(_ text: String) -> AttributedString {
-        // Foundation's AttributedString(markdown:) handles **bold**, *italic*,
-        // `code`, [text](url), ~~strike~~. Options must be requested.
         var container = AttributeContainer()
         container.font = baseFont
         container.foregroundColor = Color.ink
@@ -173,5 +281,70 @@ struct MarkdownText: View {
         let afterDot = trimmed.index(after: dotIndex)
         let content = trimmed[afterDot...].trimmingCharacters(in: .whitespaces)
         return (numStr, content)
+    }
+}
+
+// MARK: - Native markdown table view
+
+/// Renders a GFM markdown table as a native SwiftUI stacked layout:
+/// an emphasized header row with a subtle background, followed by data rows
+/// separated by thin Azurio borders.  Each column flexes equally.
+private struct MarkdownTableView: View {
+    let header: [String]
+    let rows: [[String]]
+    let baseFont: Font
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header row
+            HStack(spacing: 0) {
+                ForEach(Array(header.enumerated()), id: \.offset) { _, cell in
+                    Text(parseCell(cell, isHeader: true))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                }
+            }
+            .background(Color.white.opacity(0.04))
+
+            // Data rows
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                HStack(spacing: 0) {
+                    ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
+                        Text(parseCell(cell, isHeader: false))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                    }
+                }
+                .overlay(Rectangle().fill(Color.line).frame(height: 1), alignment: .top)
+            }
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.line, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func parseCell(_ text: String, isHeader: Bool) -> AttributedString {
+        do {
+            var attr = try AttributedString(
+                markdown: text,
+                options: AttributedString.MarkdownParsingOptions(
+                    interpretedSyntax: .inlineOnlyPreservingWhitespace
+                )
+            )
+            var container = AttributeContainer()
+            container.font = isHeader ? baseFont.bold() : baseFont
+            container.foregroundColor = isHeader ? Color.ink : Color.ink2
+            attr.mergeAttributes(container)
+            return attr
+        } catch {
+            var attr = AttributedString(text)
+            attr.font = isHeader ? baseFont.bold() : baseFont
+            attr.foregroundColor = isHeader ? Color.ink : Color.ink2
+            return attr
+        }
     }
 }
