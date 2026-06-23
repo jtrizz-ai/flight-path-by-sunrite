@@ -6,7 +6,7 @@ import Foundation
 // Change this when the backend moves (e.g. to the trashcan in production).
 enum AppConfig {
     private static let key = "fp_backend_url"
-    private static let defaultURL = "http://100.117.75.7:3100"
+    private static let defaultURL = "http://100.117.75.7:3101"
 
     static var backendBaseURL: String {
         get {
