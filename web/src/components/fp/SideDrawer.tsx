@@ -33,6 +33,7 @@ export function SideDrawer({
   const extraLinks: { title: string; icon?: string; useBrand?: boolean }[] = [
     { title: 'Flight Path Program', useBrand: true },
     { title: 'Levels', icon: 'M5 21V7l7-4 7 4v14M9 21v-6h6v6' },
+    { title: 'Roof Knockability', icon: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' },
     { title: 'Profile', icon: 'M4 21c0-4 4-6 8-6s8 2 8 6' },
     { title: 'Settings', icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z' },
   ];
@@ -147,6 +148,13 @@ export function SideDrawer({
             if (link.title === 'Flight Path Program') {
               return (
                 <Link key={link.title} href="/program" onClick={onClose} className={cls} style={style}>
+                  {inner}
+                </Link>
+              );
+            }
+            if (link.title === 'Roof Knockability') {
+              return (
+                <Link key={link.title} href="/roof-knockability" onClick={onClose} className={cls} style={style}>
                   {inner}
                 </Link>
               );
