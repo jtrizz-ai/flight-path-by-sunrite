@@ -1,0 +1,7 @@
+services:
+  web:
+    build: ./web
+    ports:
+      - "3100:3100"
+    env_file: ./web/.env
+    restart: always

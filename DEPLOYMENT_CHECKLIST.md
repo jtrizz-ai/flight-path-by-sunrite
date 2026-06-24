@@ -9,7 +9,7 @@
 
 | Piece | Machine | Tailscale IP | Notes |
 |---|---|---|---|
-| Web backend (Next.js in Docker) | Mac mini | `100.97.135.81` | Not set up yet. Currently running on the Mac Studio (`100.101.18.67:3100`) for dev |
+| Web backend (Next.js in Docker) | Mac mini | `100.97.135.81` | Not set up yet. Currently running on the Mac Studio (`100.101.18.67:3101`) for dev |
 | Postgres database | Trashcan Mac Pro | `100.117.75.7` | **Live.** Migrations applied, real data present (5 `notion_pages`, 1 `app_user`) |
 | Notion crawler (node-worker) | Same Mac mini as web | `100.97.135.81` | Run on demand |
 | Local LLM (for chat) | Mac Studio | `100.101.18.67:1234` | Already running (LM Studio) |
