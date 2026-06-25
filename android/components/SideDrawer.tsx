@@ -25,6 +25,7 @@ const EXTRA_LINKS: DrawerLink[] = [
   { title: "Flight Path Program", href: "/program", icon: "airplane-outline" },
   { title: "Levels", href: "/levels", icon: "ribbon-outline" },
   { title: "Roof Knockability", href: "/roof-knockability", icon: "home-outline" },
+  { title: "Daily Journal", href: "/journal", icon: "book-outline" },
   { title: "Profile", href: "/profile", icon: "person-outline" },
   { title: "Settings", href: "/settings", icon: "settings-outline" },
 ];

@@ -85,6 +85,7 @@ function RootNavigator() {
         />
         <Stack.Screen name="page/[slug]" options={{ title: "Page" }} />
         <Stack.Screen name="levels" options={{ title: "Levels" }} />
+        <Stack.Screen name="journal" options={{ title: "Daily Journal" }} />
       </Stack>
 
       <AuthGate />

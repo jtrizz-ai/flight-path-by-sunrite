@@ -36,6 +36,16 @@ private struct MilestoneCheckBody: Encodable {
     }
 }
 private struct FortyDayPlanBody: Encodable { let plan: FortyDayPlan }
+private struct JournalPatchBody: Encodable {
+    let title: String
+    let wins: String
+    let challenges: String
+    let tomorrowsFocus: String
+    enum CodingKeys: String, CodingKey {
+        case title, wins, challenges
+        case tomorrowsFocus = "tomorrows_focus"
+    }
+}
 
 @MainActor
 final class APIClient {
@@ -257,6 +267,55 @@ final class APIClient {
                 body: PageViewBody(path: path, title: title)
             ) as Empty
         }
+    }
+
+    // ── Daily Journal ──────────────────────────────────────────────────
+
+    func fetchJournalEntries() async throws -> [JournalEntry] {
+        let resp: JournalListResponse = try await request(path: "/api/journal")
+        return resp.entries
+    }
+
+    func fetchJournalEntry(id: String) async throws -> JournalEntry {
+        let resp: JournalEntryResponse = try await request(path: "/api/journal/\(id)")
+        return resp.entry
+    }
+
+    /// Create a new entry for today. Throws `.http(409, _)` if one already
+    /// exists for today — callers should open the existing entry in that case.
+    func createJournalEntry() async throws -> JournalEntry {
+        struct EmptyBody: Encodable {}
+        let resp: JournalEntryResponse = try await request(
+            path: "/api/journal",
+            method: "POST",
+            body: EmptyBody()
+        )
+        return resp.entry
+    }
+
+    func updateJournalEntry(
+        id: String,
+        title: String?,
+        wins: String,
+        challenges: String,
+        tomorrowsFocus: String
+    ) async throws -> JournalEntry {
+        let resp: JournalEntryResponse = try await request(
+            path: "/api/journal/\(id)",
+            method: "PATCH",
+            body: JournalPatchBody(
+                title: title ?? "",
+                wins: wins,
+                challenges: challenges,
+                tomorrowsFocus: tomorrowsFocus
+            )
+        )
+        return resp.entry
+    }
+
+    func deleteJournalEntry(id: String) async throws {
+        struct Empty: Decodable {}
+        _ = try await request(path: "/api/journal/\(id)", method: "DELETE") as Empty
     }
 }
 

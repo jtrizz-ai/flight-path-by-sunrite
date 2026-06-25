@@ -250,3 +250,34 @@ struct OnboardingProgress: Codable, Equatable {
 struct OnboardingProgressResponse: Codable {
     let progress: OnboardingProgress
 }
+
+// ── Daily Journal ──────────────────────────────────────────────────────
+// Mirrors GET/POST /api/journal and /api/journal/:id (see db migration
+// 008-journal-entries.sql). One entry per user per day.
+
+struct JournalEntry: Codable, Identifiable, Hashable {
+    let id: String
+    let entryDate: String       // YYYY-MM-DD
+    var title: String?
+    var wins: String
+    var challenges: String
+    var tomorrowsFocus: String
+    let createdAt: String
+    let updatedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, wins, challenges
+        case entryDate      = "entry_date"
+        case tomorrowsFocus = "tomorrows_focus"
+        case createdAt      = "created_at"
+        case updatedAt      = "updated_at"
+    }
+}
+
+struct JournalListResponse: Codable {
+    let entries: [JournalEntry]
+}
+
+struct JournalEntryResponse: Codable {
+    let entry: JournalEntry
+}

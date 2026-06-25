@@ -1,0 +1,25 @@
+# Dependencies (installed fresh inside the image)
+node_modules
+
+# Next.js build output (built inside the image)
+.next
+out
+
+# Secrets — NEVER bake into the image. Provided at runtime via docker-compose env_file.
+.env
+.env.*
+!.env.example
+
+# Misc
+.git
+.gitignore
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+coverage
+README.md
+AGENTS.md
+AUTH_SETUP.md
+TESTING_GUIDE.md

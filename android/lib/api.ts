@@ -266,3 +266,62 @@ export function readBlocks(page: PageDetail): Block[] {
   if (Array.isArray(c)) return c;
   return c?.blocks ?? [];
 }
+
+// ── Daily Journal ─────────────────────────────────────────────────────────
+// Mirrors web/src/app/api/journal. One entry per user per day with three
+// structured sections (wins, challenges, tomorrows_focus).
+
+export type JournalEntry = {
+  id: string;
+  entry_date: string; // YYYY-MM-DD
+  title: string | null;
+  wins: string;
+  challenges: string;
+  tomorrows_focus: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type JournalListResponse = { entries: JournalEntry[] };
+type JournalEntryResponse = { entry: JournalEntry };
+
+export type JournalPatch = {
+  title: string;
+  wins: string;
+  challenges: string;
+  tomorrows_focus: string;
+};
+
+export async function fetchJournalEntries(): Promise<JournalEntry[]> {
+  const r = await request<JournalListResponse>("/api/journal");
+  return r.entries ?? [];
+}
+
+export async function fetchJournalEntry(id: string): Promise<JournalEntry> {
+  const r = await request<JournalEntryResponse>(`/api/journal/${id}`);
+  return r.entry;
+}
+
+/** Create today's entry. Rejects with ApiError(409) if one already exists. */
+export async function createJournalEntry(): Promise<JournalEntry> {
+  const r = await request<JournalEntryResponse>("/api/journal", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  return r.entry;
+}
+
+export async function updateJournalEntry(
+  id: string,
+  patch: JournalPatch
+): Promise<JournalEntry> {
+  const r = await request<JournalEntryResponse>(`/api/journal/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return r.entry;
+}
+
+export async function deleteJournalEntry(id: string): Promise<void> {
+  await request<{ ok: boolean }>(`/api/journal/${id}`, { method: "DELETE" });
+}

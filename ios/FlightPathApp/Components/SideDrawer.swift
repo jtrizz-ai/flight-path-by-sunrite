@@ -10,6 +10,7 @@ struct SideDrawer: View {
     @State private var showLevels = false
     @State private var showProgram = false
     @State private var showRoofKnockability = false
+    @State private var showJournal = false
 
     private struct Link: Identifiable {
         let id = UUID()
@@ -35,6 +36,7 @@ struct SideDrawer: View {
         links.append(.init(title: "Levels", systemImage: "rosette", useBrandMark: false, tab: nil))
         links.append(.init(title: "Door Pitch", systemImage: "mic", useBrandMark: false, tab: nil))
         links.append(.init(title: "Roof Knockability", systemImage: "house.and.flag", useBrandMark: false, tab: nil))
+        links.append(.init(title: "Daily Journal", systemImage: "book", useBrandMark: false, tab: nil))
         links.append(.init(title: "Profile", systemImage: "person.crop.circle", useBrandMark: false, tab: nil))
         links.append(.init(title: "Settings", systemImage: "gearshape", useBrandMark: false, tab: nil))
         return links
@@ -70,6 +72,7 @@ struct SideDrawer: View {
         .sheet(isPresented: $showLevels) { LevelsView() }
         .sheet(isPresented: $showProgram) { FlightPathProgramView(app: app) }
         .sheet(isPresented: $showProfile) { ProfileView(app: app) }
+        .sheet(isPresented: $showJournal) { JournalView() }
         .sheet(isPresented: $showSettings) { SettingsView(app: app) }
     }
 
@@ -152,6 +155,8 @@ struct SideDrawer: View {
                 close()
             case "Flight Path Program":
                 showProgram = true
+            case "Daily Journal":
+                showJournal = true
             default:
                 if let tab = link.tab { app.select(tab) }
                 close()

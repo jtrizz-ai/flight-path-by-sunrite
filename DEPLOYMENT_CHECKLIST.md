@@ -9,10 +9,15 @@
 
 | Piece | Machine | Tailscale IP | Notes |
 |---|---|---|---|
-| Web backend (Next.js in Docker) | Mac mini | `100.97.135.81` | Not set up yet. Currently running on the Mac Studio (`100.101.18.67:3101`) for dev |
+| Web backend (Next.js in Docker) | Mac mini (node renamed **`flightpath`**) | `100.97.135.81` | Production target. Public URL via **Tailscale Funnel**: `https://flightpath.tailbce7aa.ts.net`. Dev still runs on Mac Studio (`100.101.18.67:3101`) |
 | Postgres database | Trashcan Mac Pro | `100.117.75.7` | **Live.** Migrations applied, real data present (5 `notion_pages`, 1 `app_user`) |
 | Notion crawler (node-worker) | Same Mac mini as web | `100.97.135.81` | Run on demand |
 | Local LLM (for chat) | Mac Studio | `100.101.18.67:1234` | Already running (LM Studio) |
+
+> **Decisions locked in (June 2026):**
+> - Public URL method: **Tailscale Funnel** (already enabled in your ACL).
+> - Production host: **mini1-staging** renamed to **`flightpath`** (`100.97.135.81`).
+> - Public URL: **`https://flightpath.tailbce7aa.ts.net`**
 
 All three machines talk to each other over Tailscale. No public internet needed
 except the one tunnel (below) that exposes the website.
@@ -30,34 +35,35 @@ except the one tunnel (below) that exposes the website.
 This is the fastest win. Once the website is live, your team can log in and use
 Flight Path from any browser — no app install required.
 
-### 1.1 Create a Dockerfile for the web app
+### 1.1 Create a Dockerfile for the web app  ✅ DONE
 
-There is no Dockerfile yet. One needs to be created at `web/Dockerfile`.
+**Already complete.** `web/Dockerfile` does a clean 3-stage build (deps → build →
+standalone runner) on `node:20-alpine`, exposes port 3100, and runs the
+standalone server. `output: 'standalone'` is set in `web/next.config.ts`.
+`docker-compose.yml` at the repo root builds `./web`, maps port 3100, loads
+`./web/.env`, and sets `restart: always`.
 
-It should:
-- Use `node:20-alpine` as the base image
-- Copy `package.json` and run `npm ci`
-- Copy the rest of the web app and run `npm run build`
-- Expose port 3100 and start with `npm start`
+### 1.2 Pick a public URL method (free, no domain purchase needed)  ✅ DONE
 
-Also create a `docker-compose.yml` at the repo root that:
-- Builds and runs the web container on port 3100
-- Sets the `DATABASE_URL` to the trashcan Postgres (`100.117.75.7:5432`)
-- Mounts `.env` for secrets
+**Decision: Tailscale Funnel.** It's already enabled in your tailnet ACL
+(`nodeAttrs` → `funnel` for members), and the production node has been renamed
+to `flightpath`, so the public URL is fixed:
 
-Ask your AI agent to create both files.
+```
+https://flightpath.tailbce7aa.ts.net
+```
 
-### 1.2 Pick a public URL method (free, no domain purchase needed)
+The Funnel command itself is run in step 1.7 (after the container is up).
 
-You have two good options. Pick one:
+The original two options are kept below for reference.
 
-**Option A — Tailscale Funnel (simplest, you already have Tailscale)**
+**Option A — Tailscale Funnel (CHOSEN)**
 
 Tailscale Funnel exposes a local port to the public internet with automatic
 HTTPS. Your team does NOT need Tailscale installed to reach it.
 
 ```
-URL format:  https://flightpath.<your-tailnet-name>.ts.net
+URL format:  https://flightpath.tailbce7aa.ts.net
 ```
 
 To set up (run on the Mac mini once the web container is running):
@@ -78,57 +84,57 @@ This gives you a `*.trycloudflare.com` URL instantly.
 For a named URL (like `flightpath.trycloudflare.com`), create a named tunnel
 in the Cloudflare dashboard.
 
-### 1.3 Update Google OAuth credentials for production
+### 1.3 Update Google OAuth credentials for production  ✅ DONE
 
-1. Go to https://console.cloud.google.com/apis/credentials
-2. Click your OAuth 2.0 Client ID (starts with `1007966664828`)
-3. Under **Authorized redirect URIs**, add:
-   ```
-   https://YOUR_PUBLIC_URL/api/auth/callback/google
-   ```
-   (replace `YOUR_PUBLIC_URL` with the URL from step 1.2)
-4. Keep the existing `http://localhost:3100/api/auth/callback/google` for dev
-5. Save
+Production redirect URI `https://flightpath.tailbce7aa.ts.net/api/auth/callback/google`
+added to the Google Cloud Console OAuth client. Dev URI kept alongside it.
 
-### 1.4 Prepare production environment variables
+### 1.4 Prepare production environment variables  ✅ DONE
 
-Create a production `.env` file for the Mac mini. It should contain everything
-from `web/.env.example` but with production values:
+Production `.env` is in place at `web/.env` on the Mac mini (`flightpath`).
+All 15 required vars present; `AUTH_SECRET` / `APP_API_TOKEN` / `ADMIN_TOKEN`
+generated; real values filled for DB, Google OAuth, Notion, and LLM. File is
+gitignored (`web/.gitignore` line 34) and excluded from the Docker image
+(`web/.dockerignore`).
 
 ```bash
-# Database on the trashcan (over Tailscale)
-DATABASE_URL=postgres://flightpath_user:PASSWORD@100.117.75.7:5432/flightpath?sslmode=disable
+# ── Database on the trashcan (over Tailscale) ─────────────────────────────
+# Password from 1Password: "Flight Path DB user (trashcan)"
+DATABASE_URL=postgres://flightpath_user:<DB_PASSWORD>@100.117.75.7:5432/flightpath?sslmode=disable
 
-# Auth — generate a NEW secret for production
-AUTH_SECRET=$(openssl rand -base64 32)
+# ── Auth.js (NextAuth v5) ─────────────────────────────────────────────────
+# Generated. Do not change.
+AUTH_SECRET=8TrrdUOiJhGaaam5kDPi8wME+VViKt8pz8UV4zj+0ac=
+# The public Funnel URL
+AUTH_URL=https://flightpath.tailbce7aa.ts.net
 
-# The public URL from your tunnel (step 1.2)
-AUTH_URL=https://YOUR_PUBLIC_URL
-
-# Same Google OAuth credentials (from Google Cloud Console — keep secret, never commit real values)
+# ── Google OAuth (same client as dev) ─────────────────────────────────────
+# From https://console.cloud.google.com/apis/credentials
 AUTH_GOOGLE_ID=<YOUR_GOOGLE_OAUTH_CLIENT_ID>.apps.googleusercontent.com
 AUTH_GOOGLE_SECRET=<YOUR_GOOGLE_OAUTH_CLIENT_SECRET>
 
-# Notion (for the crawler)
+# ── Notion (for the crawler) ──────────────────────────────────────────────
+# Copy from your existing web/.env.local on the Mac Studio
 NOTION_API_KEY=<from your .env.local>
 NOTION_ROOT_PAGE_ID=<from your .env.local>
 
-# LLM (Mac Studio over Tailscale)
+# ── Local LLM (Mac Studio over Tailscale) ─────────────────────────────────
 LLM_BASE_URL=http://100.101.18.67:1234/v1
-LLM_MODEL=local-model
+LLM_MODEL=qwen3.5-122b-a10b
 LLM_API_KEY=not-needed-for-local
 
-# App tokens — generate new random strings for production
-APP_API_TOKEN=<new random string>
-ADMIN_TOKEN=<new random string>
+# ── App tokens (generated) ────────────────────────────────────────────────
+APP_API_TOKEN=467c780de571ff4baee3cfb7ead42175471793296dfa1557acd86a3c457131e8
+ADMIN_TOKEN=f510c0191a457f1df26800bc610dcbead19ee3e361b5bc67f576fd3fecb578b8
 
-# Auth policy
+# ── Auth policy ───────────────────────────────────────────────────────────
 DEFAULT_ALLOWED_DOMAIN=sunritesolarllc.com
 INVITE_REQUIRED=true
 ADMIN_SEED_EMAIL=jrizzo@sunritesolarllc.com
 ```
 
-Get the trashcan DB password from 1Password ("Flight Path DB user (trashcan)").
+> ⚠️ **Keep this file secret.** It goes ONLY on the Mac mini at
+> `/opt/flightpath/web/.env`. Never commit it. `web/.env` is in `.gitignore`.
 
 ### 1.5 Apply migrations to the trashcan database  ✅ DONE
 
@@ -157,44 +163,36 @@ done
 
 (Replace PASSWORD with the real one from 1Password.)
 
-### 1.6 Deploy the web container to the Mac mini
+### 1.6 Deploy the web container to the Mac mini  ✅ DONE
 
-**On the Mac mini (over Tailscale or directly):**
+Built and started on `flightpath` (the Mac mini) via `docker compose up -d --build`.
+Container `flight-path-by-sunrite-web-1` is running, port `3100`. Verified:
+landing page HTTP 200, container reaches the trashcan DB (5 `notion_pages`).
 
-```bash
-# Clone the repo (or copy it over)
-git clone <your-repo> /opt/flightpath
-cd /opt/flightpath
+Two code fixes were required to get a clean production build (June 2026):
+- `web/src/components/fp/RoofKnockabilityView.tsx:22` — nested double quotes
+  around `"3D"` broke the Turbopack parser; switched outer quotes to single.
+- `web/src/lib/db.ts` — was throwing on a missing `DATABASE_URL` at module
+  load, which `next build`'s page-data collection triggers. Refactored the
+  Pool to be created lazily on first query, so the build no longer needs the
+  env var (the real value is injected at runtime via the container `env_file`).
+- Added `web/.dockerignore` (excludes `node_modules`, `.env`, etc. from the
+  build context and image layers).
 
-# Create the production .env
-cp web/.env.example web/.env
-# Edit web/.env with production values (step 1.4)
+### 1.7 Start the public tunnel  ✅ DONE
 
-# Build and start
-docker compose up -d --build
+Funnel running in the background on the Mac mini:
+
+```
+https://flightpath.tailbce7aa.ts.net (Funnel on)
+|-- / proxy http://127.0.0.1:3100
 ```
 
-Verify it works:
-```bash
-curl http://localhost:3100/api/chat/health
-# Should return {"ok":true,...} or {"ok":false,...}
-```
+Verified from the public internet: landing page HTTP 200 (~0.06s after warmup),
+`/api/chat/health` returns `{"error":"Unauthorized"}` (gated + reachable).
 
-### 1.7 Start the public tunnel
-
-On the Mac mini:
-
-**If using Tailscale Funnel:**
-```bash
-tailscale funnel 3100
-```
-
-**If using Cloudflare Tunnel:**
-```bash
-cloudflared tunnel --url http://localhost:3100
-```
-
-Write down the public URL. This is what you share with your team.
+To stop later: `sudo tailscale funnel --https=443 off`
+To check status: `sudo tailscale funnel status`
 
 ### 1.8 Run the Notion crawler (first time on production DB)
 
@@ -210,7 +208,7 @@ This populates the `notion_pages` table so the website and chat have content.
 
 ### 1.9 Smoke test the production website
 
-- [ ] Open `https://YOUR_PUBLIC_URL` in a browser
+- [ ] Open `https://flightpath.tailbce7aa.ts.net` in a browser
 - [ ] Sign in with Google (`jrizzo@sunritesolarllc.com`)
 - [ ] Browse a page — content should appear
 - [ ] Open the chat — it should respond (if the Mac Studio LLM is running)
@@ -219,9 +217,9 @@ This populates the `notion_pages` table so the website and chat have content.
 ### 1.10 Share the URL with your team
 
 Before others can sign in:
-1. Go to `/admin` → **Invites** → add each person's email
+1. Go to `https://flightpath.tailbce7aa.ts.net/admin` → **Invites** → add each person's email
 2. Confirm `sunritesolarllc.com` is in **Allowed Domains**
-3. Send them the URL: "Sign in with your Google account at https://YOUR_PUBLIC_URL"
+3. Send them the URL: "Sign in with your Google account at https://flightpath.tailbce7aa.ts.net"
 
 ---
 
@@ -266,7 +264,7 @@ Once the website is live, do this to get the native iOS app to your team.
 In `ios/FlightPathApp/Networking/AppConfig.swift`, change the default URL to
 your production URL:
 ```swift
-private static let defaultURL = "https://YOUR_PUBLIC_URL"
+private static let defaultURL = "https://flightpath.tailbce7aa.ts.net"
 ```
 
 Verify the iOS Google Client ID in `FlightPathApp.swift` is correct:
@@ -355,7 +353,7 @@ If you want it on the Play Store later:
 | **Update Notion content** | Edit pages in Notion, then click "Sync Now" in `/admin` (or run node-worker manually) | Whenever content changes |
 | **Update the iOS app** | Change code → Archive in Xcode → Upload. TestFlight auto-updates testers within minutes. | As needed |
 | **Restart the server** | `docker compose restart web` on the Mac mini | Only if it crashes (set restart: always in docker-compose) |
-| **Check server health** | `curl https://YOUR_PUBLIC_URL/api/chat/health` | If something seems off |
+| **Check server health** | `curl https://flightpath.tailbce7aa.ts.net/api/chat/health` | If something seems off |
 | **Back up the database** | `pg_dump` on the trashcan, or add a cron job | Weekly recommended |
 
 ---
@@ -363,7 +361,7 @@ If you want it on the Play Store later:
 ## Quick reference — what to tell your team
 
 > "Flight Path is live. Open this link in your browser:
-> **https://YOUR_PUBLIC_URL**
+> **https://flightpath.tailbce7aa.ts.net**
 >
 > Sign in with your SunRite Google account. If you can't get in, your email
 > needs to be on the invite list — ask Jonathan to add you in the admin portal."
@@ -383,4 +381,8 @@ If you want it on the Play Store later:
 
 ---
 
-*Generated June 2026. Update this file as steps are completed.*
+*Generated June 2026. Updated June 2026: tunnel method (Tailscale Funnel) and
+production host (`flightpath` / `100.97.135.81`) locked in; 1.1/1.2/1.3/1.4/1.5/1.6/1.7
+done and site is LIVE at https://flightpath.tailbce7aa.ts.net. Remaining:
+1.8 (fresh Notion crawl — optional, 5 pages already present), 1.9 (smoke test
+sign-in), 1.10 (invite team).*
