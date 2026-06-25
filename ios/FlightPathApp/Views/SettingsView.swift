@@ -53,7 +53,7 @@ struct SettingsView: View {
                 // ── Backend URL (admin only) ──
                 if isAdmin {
                     Section("Backend") {
-                        TextField("http://localhost:3000", text: $backendURL)
+                        TextField("https://flightpath.tailbce7aa.ts.net", text: $backendURL)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                         Button("Save") {
