@@ -21,7 +21,7 @@ const APPROVED: RoofType[] = [
     description:
       "Thick, layered shingles with a dimensional, textured look. The most common roof type in the US.",
     fieldTip:
-      "Overlapping layers give it a "3D" texture — easy to spot from the street.",
+      "Overlapping layers give it a '3D' texture — easy to spot from the street.",
   },
   {
     name: "Three Tab Shingle",

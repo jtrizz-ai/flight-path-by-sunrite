@@ -15,7 +15,8 @@ const BASE_URL_KEY = "fp.base_url";
 const TOKEN_KEY = "fp.token";
 
 // Set to your backend URL in Settings (e.g. http://100.x.x.x:3000 over Tailscale).
-export const DEFAULT_BASE_URL = "";
+// Production: https://flightpath.tailbce7aa.ts.net
+export const DEFAULT_BASE_URL = "https://flightpath.tailbce7aa.ts.net";
 
 export async function getBaseUrl(): Promise<string> {
   const v = await AsyncStorage.getItem(BASE_URL_KEY);
